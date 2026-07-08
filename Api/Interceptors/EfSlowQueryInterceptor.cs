@@ -3,7 +3,7 @@ namespace Api.Interceptors;
 using System.Data.Common;
 using System.Diagnostics;
 
-using Api.Configuration;
+using Configuration;
 
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Options;

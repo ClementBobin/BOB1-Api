@@ -1,6 +1,5 @@
 namespace Application.Interfaces;
 
-using Domain.Entities;
 using Domain.Dto;
 
 public interface IAuthService

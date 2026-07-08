@@ -28,6 +28,7 @@ public static class AppServicesExtensions
 
         // ── Infrastructure services ───────────────────────────────────────
         services.AddScoped<ITokenGenerator, JwtTokenGenerator>();
+        services.AddScoped<IGeocodingService, GeocodingService>();
 
         // ── Application services ──────────────────────────────────────────
         services.AddScoped<IAuthService, AuthService>();

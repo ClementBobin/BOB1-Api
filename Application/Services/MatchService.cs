@@ -1,6 +1,6 @@
 namespace Application.Services;
 
-using Application.Interfaces;
+using Interfaces;
 
 using Domain.Dto;
 using Domain.Entities;
@@ -14,7 +14,7 @@ public class MatchService : IMatchService
 {
     private readonly IMatchRepository _matches;
     private readonly ISubscriptionRepository _subscriptions;
-    private static readonly ILogger _log = LogManager.GetCurrentClassLogger();
+    private static readonly ILogger Log = LogManager.GetCurrentClassLogger();
 
     public MatchService(IMatchRepository matches, ISubscriptionRepository subscriptions)
     {
@@ -49,7 +49,7 @@ public class MatchService : IMatchService
 
     public async Task<MatchDto> CreateAsync(CreateMatchRequest request)
     {
-        _log.Info("Creating match on {Date} division={DivisionId}", request.DateUtc, request.DivisionId);
+        Log.Info("Creating match on {Date} division={DivisionId}", request.DateUtc, request.DivisionId);
 
         var match = new Match
         {
@@ -77,13 +77,13 @@ public class MatchService : IMatchService
 
     public async Task DeleteAsync(Guid id)
     {
-        _log.Info("Deleting match {Id}", id);
+        Log.Info("Deleting match {Id}", id);
         await _matches.DeleteAsync(id);
     }
 
     public async Task<MatchDto> SubscribeAsync(Guid matchId, Guid userId, SubscribeRequest request)
     {
-        _log.Info("User {UserId} subscribing to match {MatchId} as {Role}", userId, matchId, request.Role);
+        Log.Info("User {UserId} subscribing to match {MatchId} as {Role}", userId, matchId, request.Role);
 
         var match = await _matches.GetByIdAsync(matchId)
             ?? throw new KeyNotFoundException($"Match {matchId} not found.");
@@ -110,26 +110,26 @@ public class MatchService : IMatchService
 
         await _subscriptions.AddAsync(sub);
 
-        var updated = await _matches.GetByIdAsync(matchId)!;
+        var updated = await _matches.GetByIdAsync(matchId);
         return ToDto(updated!, sub.Status);
     }
 
     public async Task<MatchDto> UnsubscribeAsync(Guid matchId, Guid userId)
     {
-        _log.Info("User {UserId} unsubscribing from match {MatchId}", userId, matchId);
+        Log.Info("User {UserId} unsubscribing from match {MatchId}", userId, matchId);
 
         var sub = await _subscriptions.GetAsync(userId, matchId)
             ?? throw new InvalidOperationException("No subscription found.");
 
         await _subscriptions.DeleteAsync(sub.Id);
 
-        var match = await _matches.GetByIdAsync(matchId)!;
+        var match = await _matches.GetByIdAsync(matchId);
         return ToDto(match!, null);
     }
 
     public async Task<MatchDto> ConfirmPresenceAsync(Guid matchId, Guid userId)
     {
-        _log.Info("User {UserId} confirming presence on match {MatchId}", userId, matchId);
+        Log.Info("User {UserId} confirming presence on match {MatchId}", userId, matchId);
 
         var sub = await _subscriptions.GetAsync(userId, matchId)
             ?? throw new InvalidOperationException("No subscription found.");

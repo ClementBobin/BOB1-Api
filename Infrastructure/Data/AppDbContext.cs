@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 namespace Infrastructure.Data;
 
 using Domain.Entities;
-using Domain.Enums;
 
 public class AppDbContext : DbContext
 {

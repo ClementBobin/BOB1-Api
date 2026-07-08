@@ -1,6 +1,6 @@
 namespace Application.Services;
 
-using Application.Interfaces;
+using Interfaces;
 
 using Domain.Dto;
 
@@ -11,20 +11,20 @@ using NLog;
 public class PointRuleService : IPointRuleService
 {
     private readonly IPointRuleRepository _rules;
-    private static readonly ILogger _log = LogManager.GetCurrentClassLogger();
+    private static readonly ILogger Log = LogManager.GetCurrentClassLogger();
 
     public PointRuleService(IPointRuleRepository rules) => _rules = rules;
 
     public async Task<IEnumerable<PointRuleDto>> GetAllAsync()
     {
-        _log.Debug("GetAllAsync");
+        Log.Debug("GetAllAsync");
         return (await _rules.GetAllAsync())
             .Select(r => new PointRuleDto(r.Id, r.Role, r.PointsOnJ15, r.PointsOnJ4, r.PointsEmergency));
     }
 
     public async Task<PointRuleDto> UpdateAsync(Guid id, UpdatePointRuleRequest request)
     {
-        _log.Info("UpdateAsync {Id}", id);
+        Log.Info("UpdateAsync {Id}", id);
 
         var rule = await _rules.GetByIdAsync(id)
             ?? throw new KeyNotFoundException($"PointRule {id} not found.");

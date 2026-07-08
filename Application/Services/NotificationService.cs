@@ -1,6 +1,6 @@
 namespace Application.Services;
 
-using Application.Interfaces;
+using Interfaces;
 
 using Domain.Dto;
 
@@ -11,14 +11,14 @@ using NLog;
 public class NotificationService : INotificationService
 {
     private readonly INotificationRepository _notifications;
-    private static readonly ILogger _log = LogManager.GetCurrentClassLogger();
+    private static readonly ILogger Log = LogManager.GetCurrentClassLogger();
 
     public NotificationService(INotificationRepository notifications)
         => _notifications = notifications;
 
     public async Task<IEnumerable<NotificationDto>> GetByUserAsync(Guid userId)
     {
-        _log.Debug("GetByUserAsync {UserId}", userId);
+        Log.Debug("GetByUserAsync {UserId}", userId);
         return (await _notifications.GetByUserAsync(userId)).Select(ToDto);
     }
 
@@ -27,7 +27,7 @@ public class NotificationService : INotificationService
 
     public async Task MarkReadAsync(Guid notificationId, Guid userId)
     {
-        _log.Info("MarkReadAsync {Id} user={UserId}", notificationId, userId);
+        Log.Info("MarkReadAsync {Id} user={UserId}", notificationId, userId);
 
         var notification = await _notifications.GetByIdAsync(notificationId)
             ?? throw new KeyNotFoundException($"Notification {notificationId} not found.");
@@ -41,7 +41,7 @@ public class NotificationService : INotificationService
 
     public async Task MarkAllReadAsync(Guid userId)
     {
-        _log.Info("MarkAllReadAsync {UserId}", userId);
+        Log.Info("MarkAllReadAsync {UserId}", userId);
         await _notifications.MarkAllReadAsync(userId);
     }
 

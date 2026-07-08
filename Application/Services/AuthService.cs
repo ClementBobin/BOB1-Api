@@ -2,7 +2,7 @@ namespace Application.Services;
 
 using System.Security.Claims;
 
-using Application.Interfaces;
+using Interfaces;
 
 using Domain.Dto;
 using Domain.Entities;
@@ -15,10 +15,10 @@ using NLog;
 public class AuthService : IAuthService
 {
     private readonly IUserRepository _users;
-    private readonly Infrastructure.Interfaces.ITokenGenerator _tokens;
-    private static readonly ILogger _log = LogManager.GetCurrentClassLogger();
+    private readonly ITokenGenerator _tokens;
+    private static readonly ILogger Log = LogManager.GetCurrentClassLogger();
 
-    public AuthService(IUserRepository users, Infrastructure.Interfaces.ITokenGenerator tokens)
+    public AuthService(IUserRepository users, ITokenGenerator tokens)
     {
         _users = users;
         _tokens = tokens;
@@ -26,7 +26,7 @@ public class AuthService : IAuthService
 
     public async Task<LoginResponse> LoginAsync(LoginRequest request)
     {
-        _log.Info("Login attempt for {Email}", request.Email);
+        Log.Info("Login attempt for {Email}", request.Email);
 
         var user = await _users.GetByEmailAsync(request.Email)
             ?? throw new UnauthorizedAccessException("Invalid credentials.");
@@ -35,13 +35,13 @@ public class AuthService : IAuthService
             throw new UnauthorizedAccessException("Invalid credentials.");
 
         var token = GenerateToken(user);
-        _log.Info("Login successful for {Email}", user.Email);
+        Log.Info("Login successful for {Email}", user.Email);
         return new LoginResponse(token, ToDto(user));
     }
 
     public async Task<LoginResponse> RegisterAsync(RegisterRequest request)
     {
-        _log.Info("Register {Email}", request.Email);
+        Log.Info("Register {Email}", request.Email);
 
         if (await _users.ExistsByEmailAsync(request.Email))
             throw new InvalidOperationException($"Email '{request.Email}' is already taken.");

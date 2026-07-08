@@ -1,14 +1,12 @@
-namespace Infrastructure.Security;
-
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-
 using Infrastructure.Configuration;
 using Infrastructure.Interfaces;
-
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+
+namespace Infrastructure.Security;
 
 public class JwtTokenGenerator : ITokenGenerator
 {

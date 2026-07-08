@@ -1,6 +1,6 @@
 namespace Domain.Entities;
 
-using Domain.Enums;
+using Enums;
 
 public class AppNotification
 {
@@ -9,7 +9,10 @@ public class AppNotification
     public string Title { get; set; } = string.Empty;
     public string Body { get; set; } = string.Empty;
     public bool IsRead { get; set; }
+    public bool IsRecursif { get; set; }
+    public bool IsShowAtStart { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? ExpiresAt { get; set; }
 
     // FKs
     public Guid UserId { get; set; }
