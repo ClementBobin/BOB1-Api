@@ -1,4 +1,5 @@
 using Api.Extensions;
+using Api.Middleware;
 
 using Infrastructure.Data;
 
@@ -31,11 +32,10 @@ try
             if (builder.Environment.IsDevelopment())
                 policy.WithOrigins("http://localhost:5173", "https://localhost:5173")
                       .AllowAnyHeader().AllowAnyMethod().AllowCredentials();
-            else if (builder.Environment.IsStaging())
-                policy.WithOrigins("https://staging.projet-cyna.fr")
-                      .AllowAnyHeader().AllowAnyMethod().AllowCredentials();
             else
-                policy.WithOrigins("https://projet-cyna.fr", "https://www.projet-cyna.fr")
+                policy.WithOrigins(
+                        builder.Configuration.GetSection("Cors:Origins").Get<string[]>()
+                        ?? ["https://bob1.local"])
                       .AllowAnyHeader().AllowAnyMethod().AllowCredentials();
         });
     });
@@ -45,20 +45,24 @@ try
     builder.Services.AddOpenApi();
     builder.Services.AddSwaggerGen(options =>
     {
-        options.SwaggerDoc("v1", new OpenApiInfo { Title = "CynaApi API", Version = "v1" });
+        options.SwaggerDoc("v1", new OpenApiInfo
+        {
+            Title = "Bob1 API",
+            Version = "v1",
+        });
         options.CustomSchemaIds(type => type.FullName);
         options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
         {
             Name = "Authorization",
-            Description = "JWT Authorization header using the Bearer scheme. Exemple : \"Bearer 12345abcdef\"",
+            Description = "JWT Authorization — example: \"Bearer <token>\"",
             In = ParameterLocation.Header,
             Type = SecuritySchemeType.Http,
             Scheme = "bearer",
-            BearerFormat = "JWT"
+            BearerFormat = "JWT",
         });
-        options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+        options.AddSecurityRequirement(doc => new OpenApiSecurityRequirement
         {
-            [new OpenApiSecuritySchemeReference("Bearer", document)] = []
+            [new OpenApiSecuritySchemeReference("Bearer", doc)] = [],
         });
     });
 
@@ -70,17 +74,17 @@ try
 
     var app = builder.Build();
 
-    // Migrations + seed
+    // Migrations + seed (dev: always seed; prod: migrate only)
     using (var scope = app.Services.CreateScope())
     {
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        await context.Database.MigrateAsync();
-
-        if (args.Contains("--seed") && !app.Environment.IsProduction())
+        if (app.Environment.IsDevelopment() || args.Contains("--seed"))
             await DbInitializer.SeedAsync(context);
+        else
+            await context.Database.MigrateAsync();
     }
 
-    // Docs (hors prod)
+    // Docs (non-prod only)
     var apiDocs = builder.Configuration["ApiDocs"] ?? "Scalar";
     if (!app.Environment.IsProduction())
     {
@@ -107,17 +111,18 @@ try
 
     app.MapHealthChecks("/health");
 
-    // Pipeline middleware (ordre important)
-    app.UseForwardedHeaders(new ForwardedHeadersOptions   // 0. Proxy (X-Forwarded-Proto → scheme HTTPS)
+    // Middleware pipeline (order matters)
+    app.UseForwardedHeaders(new ForwardedHeadersOptions
     {
         ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
     });
-    app.UseHttpsRedirection();   // 1. HTTPS
-    app.UseCors("Frontend");     // 2. CORS
-    app.UseCookiePolicy();       // 3. Cookies
-    app.UseAuthentication();     // 4. Auth
-    app.UseAuthorization();      // 5. Autorisation
-    app.MapControllers();        // 6. Routes
+    app.UseMiddleware<GlobalExceptionMiddleware>(); // global error handler
+    app.UseHttpsRedirection();
+    app.UseCors("Frontend");
+    app.UseCookiePolicy();
+    app.UseAuthentication();
+    app.UseAuthorization();
+    app.MapControllers();
 
     app.Run();
 }

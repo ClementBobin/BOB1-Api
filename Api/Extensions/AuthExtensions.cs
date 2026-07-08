@@ -2,8 +2,7 @@ namespace Api.Extensions;
 
 using System.Text;
 
-using Infrastructure.Interfaces;
-using Infrastructure.Security;
+using Infrastructure.Configuration;
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -37,19 +36,22 @@ public static class AuthExtensions
                     ValidAudience = jwtConfig.Audience,
                     IssuerSigningKey = new SymmetricSecurityKey(keyBytes),
                     ClockSkew = TimeSpan.Zero,
-                    RoleClaimType = "role"
+                    RoleClaimType = "role",
                 };
                 options.Events = new JwtBearerEvents
                 {
                     OnMessageReceived = context =>
                     {
-                        var token = context.Request.Cookies["{{ auth_cookie_name }}"];
+                        // Also accept token from cookie for browser clients
+                        var token = context.Request.Cookies["bob1_token"];
                         if (!string.IsNullOrEmpty(token))
                             context.Token = token;
                         return Task.CompletedTask;
-                    }
+                    },
                 };
             });
+
+        services.AddAuthorization();
 
         return services;
     }
