@@ -6,7 +6,7 @@ public class Subscription
 {
     public Guid Id { get; set; }
     public OfficialRole Role { get; set; }
-    public MatchSubscriptionStatus Status { get; set; } = MatchSubscriptionStatus.Subscribed;
+    public MatchSubscriptionStatus Status { get; set; } = MatchSubscriptionStatus.Neutral;
     public DateTime? ConfirmedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

@@ -10,4 +10,5 @@ public interface ISubscriptionRepository
     Task AddAsync(Subscription subscription);
     Task UpdateAsync(Subscription subscription);
     Task DeleteAsync(Guid id);
+    Task<IEnumerable<Subscription>> GetByUserAndMatchesAsync(Guid userId, IEnumerable<Guid> matchIds);
 }

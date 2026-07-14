@@ -18,23 +18,23 @@ public class MatchController : BaseController
     /// <summary>GET /api/matches</summary>
     [HttpGet]
     public async Task<ActionResult<IEnumerable<MatchDto>>> GetAll()
-        => Ok(await _matches.GetAllAsync());
+        => Ok(await _matches.GetAllAsync(CurrentUserId));
 
     /// <summary>GET /api/matches?year=2025&amp;month=11</summary>
     [HttpGet("by-month")]
     public async Task<ActionResult<IEnumerable<MatchDto>>> GetByMonth(
         [FromQuery] int year, [FromQuery] int month)
-        => Ok(await _matches.GetByMonthAsync(year, month));
+        => Ok(await _matches.GetByMonthAsync(year, month, CurrentUserId));
 
     /// <summary>GET /api/matches/by-division/{divisionId}</summary>
     [HttpGet("by-division/{divisionId:guid}")]
     public async Task<ActionResult<IEnumerable<MatchDto>>> GetByDivision(Guid divisionId)
-        => Ok(await _matches.GetByDivisionAsync(divisionId));
+        => Ok(await _matches.GetByDivisionAsync(divisionId, CurrentUserId));
 
     /// <summary>GET /api/matches/{id}</summary>
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<MatchDto>> GetById(Guid id)
-        => Ok(await _matches.GetByIdAsync(id));
+        => Ok(await _matches.GetByIdAsync(id, CurrentUserId));
 
     /// <summary>POST /api/matches — admin only</summary>
     [HttpPost]

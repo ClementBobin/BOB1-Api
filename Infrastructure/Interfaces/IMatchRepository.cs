@@ -10,5 +10,6 @@ public interface IMatchRepository
     Task<IEnumerable<Match>> GetByDivisionAsync(Guid divisionId);
     Task AddAsync(Match match);
     Task UpdateAsync(Match match);
+    Task UpdateSlotAsync(RoleSlot slot);
     Task DeleteAsync(Guid id);
 }

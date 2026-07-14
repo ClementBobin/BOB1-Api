@@ -68,6 +68,13 @@ public class MatchRepository : IMatchRepository
         await _db.SaveChangesAsync();
     }
 
+    public async Task UpdateSlotAsync(RoleSlot slot)
+    {
+        _log.Info("UpdateSlotAsync slot={SlotId} assignedUser={UserId}", slot.Id, slot.AssignedUserId);
+        _db.RoleSlots.Update(slot);
+        await _db.SaveChangesAsync();
+    }
+
     public async Task UpdateAsync(Match match)
     {
         _log.Info("UpdateAsync {Id}", match.Id);

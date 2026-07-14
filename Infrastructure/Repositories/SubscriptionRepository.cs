@@ -66,4 +66,13 @@ public class SubscriptionRepository : ISubscriptionRepository
         _db.Subscriptions.Remove(sub);
         await _db.SaveChangesAsync();
     }
+
+    public async Task<IEnumerable<Subscription>> GetByUserAndMatchesAsync(Guid userId, IEnumerable<Guid> matchIds)
+    {
+        _log.Debug("GetByUserAndMatchesAsync user={UserId} for {Count} matches", userId, matchIds.Count());
+        return await _db.Subscriptions
+            .AsNoTracking()
+            .Where(s => s.UserId == userId && matchIds.Contains(s.MatchId))
+            .ToListAsync();
+    }
 }

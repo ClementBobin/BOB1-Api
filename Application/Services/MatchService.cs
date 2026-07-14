@@ -21,30 +21,32 @@ public class MatchService : IMatchService
         _matches = matches;
         _subscriptions = subscriptions;
     }
-
-    public async Task<IEnumerable<MatchDto>> GetAllAsync()
+    // Add methods that include user context
+    public async Task<IEnumerable<MatchDto>> GetAllAsync(Guid userId)
     {
         var matches = await _matches.GetAllAsync();
-        return matches.Select(m => ToDto(m, null));
+        return await MapWithUserStatusAsync(matches, userId);
     }
 
-    public async Task<IEnumerable<MatchDto>> GetByMonthAsync(int year, int month)
+    public async Task<IEnumerable<MatchDto>> GetByMonthAsync(int year, int month, Guid userId)
     {
         var matches = await _matches.GetByMonthAsync(year, month);
-        return matches.Select(m => ToDto(m, null));
+        return await MapWithUserStatusAsync(matches, userId);
     }
 
-    public async Task<IEnumerable<MatchDto>> GetByDivisionAsync(Guid divisionId)
+    public async Task<IEnumerable<MatchDto>> GetByDivisionAsync(Guid divisionId, Guid userId)
     {
         var matches = await _matches.GetByDivisionAsync(divisionId);
-        return matches.Select(m => ToDto(m, null));
+        return await MapWithUserStatusAsync(matches, userId);
     }
 
-    public async Task<MatchDto> GetByIdAsync(Guid id)
+    public async Task<MatchDto> GetByIdAsync(Guid id, Guid userId)
     {
         var match = await _matches.GetByIdAsync(id)
-            ?? throw new KeyNotFoundException($"Match {id} not found.");
-        return ToDto(match, null);
+                    ?? throw new KeyNotFoundException($"Match {id} not found.");
+
+        var status = await GetUserStatusAsync(userId, id);
+        return ToDto(match, status);
     }
 
     public async Task<MatchDto> CreateAsync(CreateMatchRequest request)
@@ -72,7 +74,7 @@ public class MatchService : IMatchService
 
         var created = await _matches.GetByIdAsync(match.Id)
             ?? throw new InvalidOperationException("Match not found after creation.");
-        return ToDto(created, null);
+        return ToDto(created, MatchSubscriptionStatus.Neutral);
     }
 
     public async Task DeleteAsync(Guid id)
@@ -110,6 +112,10 @@ public class MatchService : IMatchService
 
         await _subscriptions.AddAsync(sub);
 
+        // Update the slot so the assigned user is visible to all clients
+        slot.AssignedUserId = userId;
+        await _matches.UpdateSlotAsync(slot);
+
         var updated = await _matches.GetByIdAsync(matchId)!;
         return ToDto(updated!, sub.Status);
     }
@@ -123,8 +129,18 @@ public class MatchService : IMatchService
 
         await _subscriptions.DeleteAsync(sub.Id);
 
-        var match = await _matches.GetByIdAsync(matchId)!;
-        return ToDto(match!, null);
+        var match = await _matches.GetByIdAsync(matchId)
+            ?? throw new KeyNotFoundException($"Match {matchId} not found.");
+
+        // Clear the slot so it appears vacant to all clients
+        var slot = match.Slots.FirstOrDefault(s => s.AssignedUserId == userId);
+        if (slot is not null)
+        {
+            slot.AssignedUserId = null;
+            await _matches.UpdateSlotAsync(slot);
+        }
+
+        return ToDto(match, MatchSubscriptionStatus.Neutral);
     }
 
     public async Task<MatchDto> ConfirmPresenceAsync(Guid matchId, Guid userId)
@@ -148,6 +164,34 @@ public class MatchService : IMatchService
         return ToDto(match, newStatus);
     }
 
+    // Helper method to get user status for a single match
+    private async Task<MatchSubscriptionStatus?> GetUserStatusAsync(Guid userId, Guid matchId)
+    {
+        var subscription = await _subscriptions.GetAsync(userId, matchId);
+        return subscription?.Status;
+    }
+
+    // Helper method to get user statuses for multiple matches
+    private async Task<Dictionary<Guid, MatchSubscriptionStatus?>> GetUserStatusesAsync(
+        Guid userId, IEnumerable<Match> matches)
+    {
+        var matchIds = matches.Select(m => m.Id);
+        var subscriptions = await _subscriptions.GetByUserAndMatchesAsync(userId, matchIds);
+        return subscriptions.ToDictionary(
+            s => s.MatchId,
+            s => (MatchSubscriptionStatus?)s.Status
+        );
+    }
+
+    // Helper method to map matches with user statuses
+    private async Task<IEnumerable<MatchDto>> MapWithUserStatusAsync(
+        IEnumerable<Match> matches, Guid userId)
+    {
+        var statusDict = await GetUserStatusesAsync(userId, matches);
+        return matches.Select(m => ToDto(m, statusDict.GetValueOrDefault(m.Id)));
+    }
+
+
     // ── Mapping ───────────────────────────────────────────────────────────
 
     private static MatchDto ToDto(Match m, MatchSubscriptionStatus? currentUserStatus) => new(
@@ -164,9 +208,9 @@ public class MatchService : IMatchService
             m.Location.Id,
             m.Location.Name,
             m.Location.Address,
-            null,
-            null,
-            m.Location.GeocodedAt != null,
+            m.Location.Coordinates?.Latitude,
+            m.Location.Coordinates?.Longitude,
+            m.Location.IsGeocoded,
             m.Location.GeocodedAt),
         m.Slots.Select(s => new RoleSlotDto(
             s.Role,
