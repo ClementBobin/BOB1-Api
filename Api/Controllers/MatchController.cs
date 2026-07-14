@@ -20,12 +20,6 @@ public class MatchController : BaseController
     public async Task<ActionResult<IEnumerable<MatchDto>>> GetAll()
         => Ok(await _matches.GetAllAsync(CurrentUserId));
 
-    /// <summary>GET /api/matches?year=2025&amp;month=11</summary>
-    [HttpGet("by-month")]
-    public async Task<ActionResult<IEnumerable<MatchDto>>> GetByMonth(
-        [FromQuery] int year, [FromQuery] int month)
-        => Ok(await _matches.GetByMonthAsync(year, month, CurrentUserId));
-
     /// <summary>GET /api/matches/by-division/{divisionId}</summary>
     [HttpGet("by-division/{divisionId:guid}")]
     public async Task<ActionResult<IEnumerable<MatchDto>>> GetByDivision(Guid divisionId)

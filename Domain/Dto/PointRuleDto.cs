@@ -5,11 +5,11 @@ using Domain.Enums;
 public record PointRuleDto(
     Guid Id,
     OfficialRole Role,
-    int PointsOnJ15,
-    int PointsOnJ4,
+    int PointsOnConfirmation1,
+    int PointsOnConfirmation2,
     int PointsEmergency);
 
 public record UpdatePointRuleRequest(
-    int PointsOnJ15,
-    int PointsOnJ4,
+    int PointsOnConfirmation1,
+    int PointsOnConfirmation2,
     int PointsEmergency);

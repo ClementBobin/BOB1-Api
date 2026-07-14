@@ -4,25 +4,22 @@ using Domain.Enums;
 
 public record RoleSlotDto(
     OfficialRole Role,
-    UserDto? AssignedUser);
+    UserPublicDto? AssignedUser);
+
 
 public record MatchDto(
     Guid Id,
     DateTime DateUtc,
     DateTime? EmergencyDateUtc,
-    int EmergencyPoints,
     DivisionDto Division,
     TeamDto HomeTeam,
     TeamDto AwayTeam,
     LocationDto Location,
     IEnumerable<RoleSlotDto> Slots,
-    MatchSubscriptionStatus? CurrentUserStatus); // null when called without auth context
-
+    MatchSubscriptionStatus? CurrentUserStatus);
 
 public record CreateMatchRequest(
     DateTime DateUtc,
-    DateTime? EmergencyDateUtc,
-    int EmergencyPoints,
     Guid DivisionId,
     Guid HomeTeamId,
     Guid AwayTeamId,

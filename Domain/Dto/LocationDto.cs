@@ -5,9 +5,7 @@ public record LocationDto(
     string Name,
     string Address,
     double? Latitude,
-    double? Longitude,
-    bool IsGeocoded,
-    DateTime? GeocodedAt);
+    double? Longitude);
 
 public record CreateLocationRequest(
     string Name,
