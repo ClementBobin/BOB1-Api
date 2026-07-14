@@ -18,3 +18,5 @@ public record UserDto(
     string FirstName,
     string LastName,
     UserRole Role);
+
+public record ChangeUserRoleRequest(Domain.Enums.UserRole Role);

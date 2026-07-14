@@ -13,12 +13,18 @@ public class NotificationController : BaseController
 {
     private readonly INotificationService _notifications;
 
-    public NotificationController(INotificationService notifications) => _notifications = notifications;
+    public NotificationController(INotificationService notifications)
+        => _notifications = notifications;
 
-    /// <summary>GET /api/notifications</summary>
+    /// <summary>GET /api/notifications — active, non-expired notifications for current user</summary>
     [HttpGet]
     public async Task<ActionResult<IEnumerable<NotificationDto>>> GetAll()
         => Ok(await _notifications.GetByUserAsync(CurrentUserId));
+
+    /// <summary>GET /api/notifications/startup — notifications to display at app startup</summary>
+    [HttpGet("startup")]
+    public async Task<ActionResult<IEnumerable<NotificationDto>>> GetStartup()
+        => Ok(await _notifications.GetStartupNotificationsAsync(CurrentUserId));
 
     /// <summary>GET /api/notifications/unread-count</summary>
     [HttpGet("unread-count")]

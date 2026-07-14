@@ -1,8 +1,9 @@
 namespace Api.Extensions;
 
-using Configuration;
-using Interceptors;
+using Api.Configuration;
+using Api.Interceptors;
 
+using Infrastructure.Configuration;
 using Infrastructure.Data;
 
 using Microsoft.EntityFrameworkCore;

@@ -5,6 +5,8 @@ public class Penalty
     public Guid Id { get; set; }
     public string Reason { get; set; } = string.Empty;
     public int Points { get; set; }
+    public bool KickedOut { get; set; }
+    public DateTime? AcknowledgedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // FKs

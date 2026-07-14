@@ -8,10 +8,8 @@ public class Location
     public string Name { get; set; } = string.Empty;
     public string Address { get; set; } = string.Empty;
 
-    // Make Coordinates nullable - geocoding might fail
+    // Nullable — geocoding may fail or not be configured
     public Coordinates? Coordinates { get; set; }
-
-    // Optional: Track geocoding status
     public bool IsGeocoded => Coordinates != null;
     public DateTime? GeocodedAt { get; set; }
 

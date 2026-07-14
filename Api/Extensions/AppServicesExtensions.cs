@@ -25,10 +25,10 @@ public static class AppServicesExtensions
         services.AddScoped<IPenaltyRepository, PenaltyRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<IPointRuleRepository, PointRuleRepository>();
+        services.AddScoped<ILocationRepository, LocationRepository>();
 
         // ── Infrastructure services ───────────────────────────────────────
         services.AddScoped<ITokenGenerator, JwtTokenGenerator>();
-        services.AddScoped<IGeocodingService, GeocodingService>();
 
         // ── Application services ──────────────────────────────────────────
         services.AddScoped<IAuthService, AuthService>();
@@ -36,8 +36,11 @@ public static class AppServicesExtensions
         services.AddScoped<ITeamService, TeamService>();
         services.AddScoped<IDivisionService, DivisionService>();
         services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<IAdminNotificationService, AdminNotificationService>();
         services.AddScoped<IPenaltyService, PenaltyService>();
         services.AddScoped<IPointRuleService, PointRuleService>();
+        services.AddScoped<ILocationService, LocationService>();
+        services.AddScoped<IUserAdminService, UserAdminService>();
 
         return services;
     }

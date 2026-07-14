@@ -1,6 +1,6 @@
 namespace Application.Services;
 
-using Interfaces;
+using Application.Interfaces;
 
 using Domain.Dto;
 
@@ -22,6 +22,12 @@ public class NotificationService : INotificationService
         return (await _notifications.GetByUserAsync(userId)).Select(ToDto);
     }
 
+    public async Task<IEnumerable<NotificationDto>> GetStartupNotificationsAsync(Guid userId)
+    {
+        Log.Debug("GetStartupNotificationsAsync {UserId}", userId);
+        return (await _notifications.GetStartupNotificationsAsync(userId)).Select(ToDto);
+    }
+
     public async Task<int> GetUnreadCountAsync(Guid userId)
         => await _notifications.GetUnreadCountAsync(userId);
 
@@ -35,16 +41,22 @@ public class NotificationService : INotificationService
         if (notification.UserId != userId)
             throw new UnauthorizedAccessException("Cannot mark another user's notification as read.");
 
-        notification.IsRead = true;
-        await _notifications.UpdateAsync(notification);
+        // Recursive notifications are never permanently marked read
+        if (!notification.IsRecursif)
+        {
+            notification.IsRead = true;
+            await _notifications.UpdateAsync(notification);
+        }
     }
 
     public async Task MarkAllReadAsync(Guid userId)
     {
         Log.Info("MarkAllReadAsync {UserId}", userId);
+        // Repository skips recursive notifications automatically
         await _notifications.MarkAllReadAsync(userId);
     }
 
-    private static NotificationDto ToDto(Domain.Entities.AppNotification n) =>
-        new(n.Id, n.Type, n.Title, n.Body, n.IsRead, n.CreatedAt, n.MatchId);
+    internal static NotificationDto ToDto(Domain.Entities.AppNotification n) =>
+        new(n.Id, n.Type, n.Title, n.Body, n.IsRead, n.IsRecursif, n.IsShowAtStart,
+            n.ExpiresAt, n.CreatedAt, n.MatchId, n.CreatedByAdminId);
 }

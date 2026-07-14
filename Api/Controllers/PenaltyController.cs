@@ -34,4 +34,12 @@ public class PenaltyController : BaseController
         var penalty = await _penalties.CreateAsync(request);
         return CreatedAtAction(nameof(GetAll), penalty);
     }
+
+    /// <summary>POST /api/penalties/{id}/acknowledge</summary>
+    [HttpPost("{id:guid}/acknowledge")]
+    public async Task<IActionResult> Acknowledge(Guid id)
+    {
+        await _penalties.AcknowledgeAsync(id, CurrentUserId);
+        return NoContent();
+    }
 }

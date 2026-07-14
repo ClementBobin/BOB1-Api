@@ -19,22 +19,4 @@ public class DivisionController : BaseController
     [HttpGet]
     public async Task<ActionResult<IEnumerable<DivisionDto>>> GetAll()
         => Ok(await _divisions.GetAllAsync());
-
-    /// <summary>POST /api/divisions — admin only</summary>
-    [HttpPost]
-    [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<DivisionDto>> Create([FromBody] CreateDivisionRequest request)
-    {
-        var division = await _divisions.CreateAsync(request);
-        return CreatedAtAction(nameof(GetAll), division);
-    }
-
-    /// <summary>DELETE /api/divisions/{id} - admin only</summary>
-    [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Delete(Guid id)
-    {
-        await _divisions.DeleteAsync(id);
-        return NoContent();
-    }
 }

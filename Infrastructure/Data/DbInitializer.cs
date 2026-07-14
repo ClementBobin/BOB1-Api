@@ -57,8 +57,8 @@ public static class DbInitializer
         {
             return new[]
             {
-                new Team { Id = Guid.NewGuid(), Name = $"{faker.Address.City()} {div.Name} A", DivisionId = div.Id },
-                new Team { Id = Guid.NewGuid(), Name = $"{faker.Address.City()} {div.Name} B", DivisionId = div.Id },
+                new Team { Id = Guid.NewGuid(), Name = $"{faker.Address.City()}", DivisionId = div.Id },
+                new Team { Id = Guid.NewGuid(), Name = $"{faker.Address.City()}", DivisionId = div.Id },
             };
         }).ToList();
         db.Teams.AddRange(teams);
@@ -184,6 +184,8 @@ public static class DbInitializer
                 Title = "Rappel de match",
                 Body = faker.Lorem.Sentence(),
                 IsRead = faker.Random.Bool(0.3f),
+                IsRecursif = false,
+                IsShowAtStart = false,
                 CreatedAt = DateTime.UtcNow.AddHours(-faker.Random.Int(1, 72)),
             })
         ).ToList();

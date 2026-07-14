@@ -20,29 +20,15 @@ public class AuthController : BaseController
     public async Task<ActionResult<LoginResponse>> Login([FromBody] LoginRequest request)
     {
         var result = await _auth.LoginAsync(request);
-        Response.Cookies.Append("bob1_token", result.Token, new CookieOptions
-        {
-            HttpOnly = true,
-            SameSite = SameSiteMode.Strict,
-            Secure = true,
-            Expires = DateTimeOffset.UtcNow.AddDays(7)
-        });
         return Ok(result);
     }
 
     /// <summary>POST /api/auth/register</summary>
     [HttpPost("register")]
     [AllowAnonymous]
-    public async Task<ActionResult<LoginResponse>> Register([FromBody] RegisterRequest request)
+    public async Task<ActionResult<UserDto>> Register([FromBody] RegisterRequest request)
     {
         var user = await _auth.RegisterAsync(request);
-        Response.Cookies.Append("bob1_token", user.Token, new CookieOptions
-        {
-            HttpOnly = true,
-            SameSite = SameSiteMode.Strict,
-            Secure = true,
-            Expires = DateTimeOffset.UtcNow.AddDays(7)
-        });
         return CreatedAtAction(nameof(Me), user);
     }
 

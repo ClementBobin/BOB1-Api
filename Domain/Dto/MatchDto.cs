@@ -18,7 +18,6 @@ public record MatchDto(
     IEnumerable<RoleSlotDto> Slots,
     MatchSubscriptionStatus? CurrentUserStatus); // null when called without auth context
 
-public record LocationDto(Guid Id, string Name, string Address);
 
 public record CreateMatchRequest(
     DateTime DateUtc,

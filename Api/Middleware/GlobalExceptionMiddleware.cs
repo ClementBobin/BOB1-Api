@@ -7,7 +7,7 @@ using NLog;
 public class GlobalExceptionMiddleware
 {
     private readonly RequestDelegate _next;
-    private static readonly ILogger Log = LogManager.GetCurrentClassLogger();
+    private static readonly ILogger _log = LogManager.GetCurrentClassLogger();
 
     public GlobalExceptionMiddleware(RequestDelegate next) => _next = next;
 
@@ -35,9 +35,9 @@ public class GlobalExceptionMiddleware
         };
 
         if (status == StatusCodes.Status500InternalServerError)
-            Log.Error(ex, "Unhandled exception");
+            _log.Error(ex, "Unhandled exception");
         else
-            Log.Warn(ex, "Handled exception → HTTP {Status}", status);
+            _log.Warn(ex, "Handled exception → HTTP {Status}", status);
 
         ctx.Response.ContentType = "application/json";
         ctx.Response.StatusCode = status;

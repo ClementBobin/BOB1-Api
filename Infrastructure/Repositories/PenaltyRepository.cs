@@ -1,21 +1,23 @@
+namespace Infrastructure.Repositories;
+
 using Domain.Entities;
+
 using Infrastructure.Data;
 using Infrastructure.Interfaces;
+
 using Microsoft.EntityFrameworkCore;
 using NLog;
-
-namespace Infrastructure.Repositories;
 
 public class PenaltyRepository : IPenaltyRepository
 {
     private readonly AppDbContext _db;
-    private static readonly ILogger Log = LogManager.GetCurrentClassLogger();
+    private static readonly ILogger _log = LogManager.GetCurrentClassLogger();
 
     public PenaltyRepository(AppDbContext db) => _db = db;
 
     public async Task<Penalty?> GetByIdAsync(Guid id)
     {
-        Log.Debug("GetByIdAsync {Id}", id);
+        _log.Debug("GetByIdAsync {Id}", id);
         return await _db.Penalties
             .Include(p => p.User)
             .Include(p => p.Match)
@@ -24,7 +26,7 @@ public class PenaltyRepository : IPenaltyRepository
 
     public async Task<IEnumerable<Penalty>> GetByUserAsync(Guid userId)
     {
-        Log.Debug("GetByUserAsync {UserId}", userId);
+        _log.Debug("GetByUserAsync {UserId}", userId);
         return await _db.Penalties
             .AsNoTracking()
             .Include(p => p.Match)
@@ -35,7 +37,7 @@ public class PenaltyRepository : IPenaltyRepository
 
     public async Task<IEnumerable<Penalty>> GetAllAsync()
     {
-        Log.Debug("GetAllAsync");
+        _log.Debug("GetAllAsync");
         return await _db.Penalties
             .AsNoTracking()
             .Include(p => p.User)
@@ -46,21 +48,21 @@ public class PenaltyRepository : IPenaltyRepository
 
     public async Task AddAsync(Penalty penalty)
     {
-        Log.Info("AddAsync user={UserId} points={Points}", penalty.UserId, penalty.Points);
+        _log.Info("AddAsync user={UserId} points={Points}", penalty.UserId, penalty.Points);
         await _db.Penalties.AddAsync(penalty);
         await _db.SaveChangesAsync();
     }
 
     public async Task UpdateAsync(Penalty penalty)
     {
-        Log.Info("UpdateAsync {Id}", penalty.Id);
+        _log.Info("UpdateAsync {Id}", penalty.Id);
         _db.Penalties.Update(penalty);
         await _db.SaveChangesAsync();
     }
 
     public async Task DeleteAsync(Guid id)
     {
-        Log.Info("DeleteAsync {Id}", id);
+        _log.Info("DeleteAsync {Id}", id);
         var penalty = await _db.Penalties.FindAsync(id);
         if (penalty is null) return;
         _db.Penalties.Remove(penalty);

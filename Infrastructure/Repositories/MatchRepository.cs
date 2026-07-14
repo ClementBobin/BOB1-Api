@@ -1,15 +1,17 @@
+namespace Infrastructure.Repositories;
+
 using Domain.Entities;
+
 using Infrastructure.Data;
 using Infrastructure.Interfaces;
+
 using Microsoft.EntityFrameworkCore;
 using NLog;
-
-namespace Infrastructure.Repositories;
 
 public class MatchRepository : IMatchRepository
 {
     private readonly AppDbContext _db;
-    private static readonly ILogger Log = LogManager.GetCurrentClassLogger();
+    private static readonly ILogger _log = LogManager.GetCurrentClassLogger();
 
     public MatchRepository(AppDbContext db) => _db = db;
 
@@ -17,19 +19,22 @@ public class MatchRepository : IMatchRepository
         _db.Matches
             .Include(m => m.Division)
             .Include(m => m.HomeTeam)
+            .ThenInclude(t => t.Division)
             .Include(m => m.AwayTeam)
+            .ThenInclude(t => t.Division)
             .Include(m => m.Location)
-            .Include(m => m.Slots).ThenInclude(s => s.AssignedUser);
+            .Include(m => m.Slots)
+            .ThenInclude(s => s.AssignedUser);
 
     public async Task<Match?> GetByIdAsync(Guid id)
     {
-        Log.Debug("GetByIdAsync {Id}", id);
+        _log.Debug("GetByIdAsync {Id}", id);
         return await FullQuery().FirstOrDefaultAsync(m => m.Id == id);
     }
 
     public async Task<IEnumerable<Match>> GetAllAsync()
     {
-        Log.Debug("GetAllAsync");
+        _log.Debug("GetAllAsync");
         return await FullQuery()
             .AsNoTracking()
             .OrderBy(m => m.DateUtc)
@@ -38,7 +43,7 @@ public class MatchRepository : IMatchRepository
 
     public async Task<IEnumerable<Match>> GetByMonthAsync(int year, int month)
     {
-        Log.Debug("GetByMonthAsync {Year}-{Month}", year, month);
+        _log.Debug("GetByMonthAsync {Year}-{Month}", year, month);
         return await FullQuery()
             .AsNoTracking()
             .Where(m => m.DateUtc.Year == year && m.DateUtc.Month == month)
@@ -48,7 +53,7 @@ public class MatchRepository : IMatchRepository
 
     public async Task<IEnumerable<Match>> GetByDivisionAsync(Guid divisionId)
     {
-        Log.Debug("GetByDivisionAsync {DivisionId}", divisionId);
+        _log.Debug("GetByDivisionAsync {DivisionId}", divisionId);
         return await FullQuery()
             .AsNoTracking()
             .Where(m => m.DivisionId == divisionId)
@@ -58,21 +63,21 @@ public class MatchRepository : IMatchRepository
 
     public async Task AddAsync(Match match)
     {
-        Log.Info("AddAsync match on {Date}", match.DateUtc);
+        _log.Info("AddAsync match on {Date}", match.DateUtc);
         await _db.Matches.AddAsync(match);
         await _db.SaveChangesAsync();
     }
 
     public async Task UpdateAsync(Match match)
     {
-        Log.Info("UpdateAsync {Id}", match.Id);
+        _log.Info("UpdateAsync {Id}", match.Id);
         _db.Matches.Update(match);
         await _db.SaveChangesAsync();
     }
 
     public async Task DeleteAsync(Guid id)
     {
-        Log.Info("DeleteAsync {Id}", id);
+        _log.Info("DeleteAsync {Id}", id);
         var match = await _db.Matches.FindAsync(id);
         if (match is null) return;
         _db.Matches.Remove(match);

@@ -2,7 +2,7 @@ namespace Application.Services;
 
 using System.Security.Claims;
 
-using Interfaces;
+using Application.Interfaces;
 
 using Domain.Dto;
 using Domain.Entities;
@@ -15,10 +15,10 @@ using NLog;
 public class AuthService : IAuthService
 {
     private readonly IUserRepository _users;
-    private readonly ITokenGenerator _tokens;
-    private static readonly ILogger Log = LogManager.GetCurrentClassLogger();
+    private readonly Infrastructure.Interfaces.ITokenGenerator _tokens;
+    private static readonly ILogger _log = LogManager.GetCurrentClassLogger();
 
-    public AuthService(IUserRepository users, ITokenGenerator tokens)
+    public AuthService(IUserRepository users, Infrastructure.Interfaces.ITokenGenerator tokens)
     {
         _users = users;
         _tokens = tokens;
@@ -26,7 +26,7 @@ public class AuthService : IAuthService
 
     public async Task<LoginResponse> LoginAsync(LoginRequest request)
     {
-        Log.Info("Login attempt for {Email}", request.Email);
+        _log.Info("Login attempt for {Email}", request.Email);
 
         var user = await _users.GetByEmailAsync(request.Email)
             ?? throw new UnauthorizedAccessException("Invalid credentials.");
@@ -35,13 +35,13 @@ public class AuthService : IAuthService
             throw new UnauthorizedAccessException("Invalid credentials.");
 
         var token = GenerateToken(user);
-        Log.Info("Login successful for {Email}", user.Email);
+        _log.Info("Login successful for {Email}", user.Email);
         return new LoginResponse(token, ToDto(user));
     }
 
-    public async Task<LoginResponse> RegisterAsync(RegisterRequest request)
+    public async Task<UserDto> RegisterAsync(RegisterRequest request)
     {
-        Log.Info("Register {Email}", request.Email);
+        _log.Info("Register {Email}", request.Email);
 
         if (await _users.ExistsByEmailAsync(request.Email))
             throw new InvalidOperationException($"Email '{request.Email}' is already taken.");
@@ -57,8 +57,7 @@ public class AuthService : IAuthService
         };
 
         await _users.AddAsync(user);
-        var token = GenerateToken(user);
-        return new LoginResponse(token, ToDto(user));
+        return ToDto(user);
     }
 
     public async Task<UserDto> GetCurrentUserAsync(Guid userId)

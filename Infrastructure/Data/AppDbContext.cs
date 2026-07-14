@@ -3,12 +3,12 @@ using Microsoft.EntityFrameworkCore;
 namespace Infrastructure.Data;
 
 using Domain.Entities;
+using Domain.Enums;
 
 public class AppDbContext : DbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
-    // ── DbSets ────────────────────────────────────────────────────────────
     public DbSet<User> Users => Set<User>();
     public DbSet<Division> Divisions => Set<Division>();
     public DbSet<Location> Locations => Set<Location>();
@@ -35,6 +35,16 @@ public class AppDbContext : DbContext
         mb.Entity<Division>(e =>
         {
             e.HasIndex(d => d.Name).IsUnique();
+        });
+
+        // ── Location ──────────────────────────────────────────────────────
+        mb.Entity<Location>(e =>
+        {
+            e.OwnsOne(l => l.Coordinates, coords =>
+            {
+                coords.Property(c => c.Latitude).HasColumnName("Latitude");
+                coords.Property(c => c.Longitude).HasColumnName("Longitude");
+            });
         });
 
         // ── Team ──────────────────────────────────────────────────────────
@@ -91,8 +101,6 @@ public class AppDbContext : DbContext
              .OnDelete(DeleteBehavior.Cascade);
 
             e.Property(rs => rs.Role).HasConversion<string>();
-
-            // One role per match
             e.HasIndex(rs => new { rs.MatchId, rs.Role }).IsUnique();
         });
 
@@ -111,8 +119,6 @@ public class AppDbContext : DbContext
 
             e.Property(s => s.Role).HasConversion<string>();
             e.Property(s => s.Status).HasConversion<string>();
-
-            // One active subscription per user per match
             e.HasIndex(s => new { s.UserId, s.MatchId }).IsUnique();
         });
 
@@ -145,9 +151,16 @@ public class AppDbContext : DbContext
              .IsRequired(false)
              .OnDelete(DeleteBehavior.SetNull);
 
-            e.Property(n => n.Type).HasConversion<string>();
+            // Self-ref to the admin who created it
+            e.HasOne(n => n.CreatedByAdmin)
+             .WithMany()
+             .HasForeignKey(n => n.CreatedByAdminId)
+             .IsRequired(false)
+             .OnDelete(DeleteBehavior.SetNull);
 
+            e.Property(n => n.Type).HasConversion<string>();
             e.HasIndex(n => new { n.UserId, n.IsRead });
+            e.HasIndex(n => n.ExpiresAt); // for cleanup queries
         });
     }
 }
