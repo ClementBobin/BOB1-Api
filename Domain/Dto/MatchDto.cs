@@ -18,6 +18,15 @@ public record MatchDto(
     IEnumerable<RoleSlotDto> Slots,
     MatchSubscriptionStatus? CurrentUserStatus); // null when called without auth context
 
+public record MinMatchDto(
+    Guid Id,
+    DateTime DateUtc,
+    bool isEmergency,
+    DivisionDto Division,
+    LocationDto Location,
+    bool areSlotsAvailable,
+    MatchSubscriptionStatus? CurrentUserStatus);
+
 
 public record CreateMatchRequest(
     DateTime DateUtc,

@@ -4,8 +4,8 @@ using Domain.Dto;
 
 public interface IMatchService
 {
-    Task<IEnumerable<MatchDto>> GetAllAsync(Guid userId);
-    Task<IEnumerable<MatchDto>> GetByMonthAsync(int year, int month, Guid userId);
+    Task<IEnumerable<MinMatchDto>> GetAllAsync(Guid userId);
+    Task<IEnumerable<MinMatchDto>> GetByMonthAsync(int year, int month, Guid userId);
     Task<IEnumerable<MatchDto>> GetByDivisionAsync(Guid divisionId, Guid userId);
     Task<MatchDto> GetByIdAsync(Guid id, Guid userId);
     Task<MatchDto> CreateAsync(CreateMatchRequest request);

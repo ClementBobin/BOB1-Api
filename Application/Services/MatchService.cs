@@ -22,16 +22,16 @@ public class MatchService : IMatchService
         _subscriptions = subscriptions;
     }
     // Add methods that include user context
-    public async Task<IEnumerable<MatchDto>> GetAllAsync(Guid userId)
+    public async Task<IEnumerable<MinMatchDto>> GetAllAsync(Guid userId)
     {
         var matches = await _matches.GetAllAsync();
-        return await MapWithUserStatusAsync(matches, userId);
+        return await MapMinWithUserStatusAsync(matches, userId);
     }
 
-    public async Task<IEnumerable<MatchDto>> GetByMonthAsync(int year, int month, Guid userId)
+    public async Task<IEnumerable<MinMatchDto>> GetByMonthAsync(int year, int month, Guid userId)
     {
         var matches = await _matches.GetByMonthAsync(year, month);
-        return await MapWithUserStatusAsync(matches, userId);
+        return await MapMinWithUserStatusAsync(matches, userId);
     }
 
     public async Task<IEnumerable<MatchDto>> GetByDivisionAsync(Guid divisionId, Guid userId)
@@ -191,8 +191,15 @@ public class MatchService : IMatchService
         return matches.Select(m => ToDto(m, statusDict.GetValueOrDefault(m.Id)));
     }
 
+    private async Task<IEnumerable<MinMatchDto>> MapMinWithUserStatusAsync(
+        IEnumerable<Match> matches, Guid userId)
+    {
+        var statusDict = await GetUserStatusesAsync(userId, matches);
+        return matches.Select(m => ToMinDto(m, statusDict.GetValueOrDefault(m.Id)));
+    }
 
     // ── Mapping ───────────────────────────────────────────────────────────
+
 
     private static MatchDto ToDto(Match m, MatchSubscriptionStatus? currentUserStatus) => new(
         m.Id,
@@ -217,5 +224,21 @@ public class MatchService : IMatchService
             s.AssignedUser is null ? null
                 : new UserDto(s.AssignedUser.Id, s.AssignedUser.Email,
                     s.AssignedUser.FirstName, s.AssignedUser.LastName, s.AssignedUser.Role))),
+        currentUserStatus);
+
+    private static MinMatchDto ToMinDto(Match m, MatchSubscriptionStatus? currentUserStatus) => new(
+        m.Id,
+        m.DateUtc,
+        m.EmergencyDateUtc is not null && DateTime.UtcNow >= m.EmergencyDateUtc,
+        new DivisionDto(m.Division.Id, m.Division.Name),
+        new LocationDto(
+            m.Location.Id,
+            m.Location.Name,
+            m.Location.Address,
+            m.Location.Coordinates?.Latitude,
+            m.Location.Coordinates?.Longitude,
+            m.Location.IsGeocoded,
+            m.Location.GeocodedAt),
+        m.Slots.Any(s => s.AssignedUserId is null),
         currentUserStatus);
 }
