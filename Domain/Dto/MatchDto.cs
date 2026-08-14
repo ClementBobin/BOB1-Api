@@ -10,7 +10,6 @@ public record MatchDto(
     Guid Id,
     DateTime DateUtc,
     DateTime? EmergencyDateUtc,
-    int EmergencyPoints,
     DivisionDto Division,
     TeamDto HomeTeam,
     TeamDto AwayTeam,
@@ -21,7 +20,6 @@ public record MatchDto(
 public record MinMatchDto(
     Guid Id,
     DateTime DateUtc,
-    bool isEmergency,
     DivisionDto Division,
     LocationDto Location,
     bool areSlotsAvailable,
@@ -31,7 +29,6 @@ public record MinMatchDto(
 public record CreateMatchRequest(
     DateTime DateUtc,
     DateTime? EmergencyDateUtc,
-    int EmergencyPoints,
     Guid DivisionId,
     Guid HomeTeamId,
     Guid AwayTeamId,
