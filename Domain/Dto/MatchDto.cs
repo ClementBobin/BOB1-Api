@@ -9,13 +9,12 @@ public record RoleSlotDto(
 public record MatchDto(
     Guid Id,
     DateTime DateUtc,
-    DateTime? EmergencyDateUtc,
     DivisionDto Division,
     TeamDto HomeTeam,
     TeamDto AwayTeam,
     LocationDto Location,
     IEnumerable<RoleSlotDto> Slots,
-    MatchSubscriptionStatus? CurrentUserStatus); // null when called without auth context
+    MatchSubscriptionStatus? CurrentUserStatus);
 
 public record MinMatchDto(
     Guid Id,
@@ -25,10 +24,8 @@ public record MinMatchDto(
     bool areSlotsAvailable,
     MatchSubscriptionStatus? CurrentUserStatus);
 
-
 public record CreateMatchRequest(
     DateTime DateUtc,
-    DateTime? EmergencyDateUtc,
     Guid DivisionId,
     Guid HomeTeamId,
     Guid AwayTeamId,

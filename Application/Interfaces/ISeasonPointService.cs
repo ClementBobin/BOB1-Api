@@ -4,9 +4,6 @@ using Domain.Dto;
 
 public interface ISeasonPointService
 {
-    /// <summary>All entries for a single user, with total.</summary>
-    Task<SeasonPointSummaryDto> GetByUserAsync(Guid userId);
-
-    /// <summary>All entries for all users (admin view).</summary>
-    Task<IEnumerable<SeasonPointDto>> GetAllAsync();
+    Task<SeasonPointSummaryDto> GetByUserAsync(Guid userId, int? seasonId = null);
+    Task<IEnumerable<SeasonPointRankingDto>> GetRankingAsync(int? seasonId = null);
 }

@@ -5,6 +5,7 @@ using Application.Interfaces;
 using Domain.Dto;
 using Domain.Entities;
 using Domain.Enums;
+using Tools;
 
 using Infrastructure.Interfaces;
 
@@ -192,9 +193,10 @@ public class MatchService : IMatchService
             var existing = await _seasonPoints.GetByUserAndMatchAsync(userId, matchId);
             if (existing is null)
             {
-                await _seasonPoints.AddAsync(new Domain.Entities.SeasonPoint
+                await _seasonPoints.AddAsync(new SeasonPoint
                 {
                     Id = Guid.NewGuid(),
+                    SeasonId = SeasonHelper.GetSeasonId(match.DateUtc),
                     UserId = userId,
                     MatchId = matchId,
                     Points = earnedPoints,
