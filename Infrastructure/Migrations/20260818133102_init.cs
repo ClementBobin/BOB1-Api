@@ -1,5 +1,6 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
@@ -15,8 +16,8 @@ namespace Infrastructure.Migrations
                 name: "Divisions",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Name = table.Column<string>(type: "TEXT", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -27,12 +28,12 @@ namespace Infrastructure.Migrations
                 name: "Locations",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Name = table.Column<string>(type: "TEXT", nullable: false),
-                    Address = table.Column<string>(type: "TEXT", nullable: false),
-                    Latitude = table.Column<double>(type: "REAL", nullable: true),
-                    Longitude = table.Column<double>(type: "REAL", nullable: true),
-                    GeocodedAt = table.Column<DateTime>(type: "TEXT", nullable: true)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "text", nullable: false),
+                    Address = table.Column<string>(type: "text", nullable: false),
+                    Latitude = table.Column<double>(type: "double precision", nullable: true),
+                    Longitude = table.Column<double>(type: "double precision", nullable: true),
+                    GeocodedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -43,10 +44,10 @@ namespace Infrastructure.Migrations
                 name: "PointRules",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Role = table.Column<string>(type: "TEXT", nullable: false),
-                    PointsOnJ15 = table.Column<int>(type: "INTEGER", nullable: false),
-                    PointsOnJ4 = table.Column<int>(type: "INTEGER", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Role = table.Column<string>(type: "text", nullable: false),
+                    PointsOnJ15 = table.Column<int>(type: "integer", nullable: false),
+                    PointsOnJ4 = table.Column<int>(type: "integer", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -57,12 +58,12 @@ namespace Infrastructure.Migrations
                 name: "Users",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Email = table.Column<string>(type: "TEXT", nullable: false),
-                    PasswordHash = table.Column<string>(type: "TEXT", nullable: false),
-                    FirstName = table.Column<string>(type: "TEXT", nullable: false),
-                    LastName = table.Column<string>(type: "TEXT", nullable: false),
-                    Role = table.Column<string>(type: "TEXT", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Email = table.Column<string>(type: "text", nullable: false),
+                    PasswordHash = table.Column<string>(type: "text", nullable: false),
+                    FirstName = table.Column<string>(type: "text", nullable: false),
+                    LastName = table.Column<string>(type: "text", nullable: false),
+                    Role = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -73,10 +74,10 @@ namespace Infrastructure.Migrations
                 name: "Teams",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Name = table.Column<string>(type: "TEXT", nullable: false),
-                    LogoUrl = table.Column<string>(type: "TEXT", nullable: true),
-                    DivisionId = table.Column<Guid>(type: "TEXT", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "text", nullable: false),
+                    LogoUrl = table.Column<string>(type: "text", nullable: true),
+                    DivisionId = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -93,12 +94,12 @@ namespace Infrastructure.Migrations
                 name: "Matches",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    DateUtc = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    DivisionId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    HomeTeamId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    AwayTeamId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    LocationId = table.Column<Guid>(type: "TEXT", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    DateUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DivisionId = table.Column<Guid>(type: "uuid", nullable: false),
+                    HomeTeamId = table.Column<Guid>(type: "uuid", nullable: false),
+                    AwayTeamId = table.Column<Guid>(type: "uuid", nullable: false),
+                    LocationId = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -133,18 +134,18 @@ namespace Infrastructure.Migrations
                 name: "Notifications",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Type = table.Column<string>(type: "TEXT", nullable: false),
-                    Title = table.Column<string>(type: "TEXT", nullable: false),
-                    Body = table.Column<string>(type: "TEXT", nullable: false),
-                    IsRead = table.Column<bool>(type: "INTEGER", nullable: false),
-                    IsRecursif = table.Column<bool>(type: "INTEGER", nullable: false),
-                    IsShowAtStart = table.Column<bool>(type: "INTEGER", nullable: false),
-                    ExpiresAt = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    UserId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    MatchId = table.Column<Guid>(type: "TEXT", nullable: true),
-                    CreatedByAdminId = table.Column<Guid>(type: "TEXT", nullable: true)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Type = table.Column<string>(type: "text", nullable: false),
+                    Title = table.Column<string>(type: "text", nullable: false),
+                    Body = table.Column<string>(type: "text", nullable: false),
+                    IsRead = table.Column<bool>(type: "boolean", nullable: false),
+                    IsRecursif = table.Column<bool>(type: "boolean", nullable: false),
+                    IsShowAtStart = table.Column<bool>(type: "boolean", nullable: false),
+                    ExpiresAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    MatchId = table.Column<Guid>(type: "uuid", nullable: true),
+                    CreatedByAdminId = table.Column<Guid>(type: "uuid", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -173,15 +174,15 @@ namespace Infrastructure.Migrations
                 name: "Penalties",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    SeasonId = table.Column<int>(type: "INTEGER", nullable: false),
-                    Reason = table.Column<string>(type: "TEXT", nullable: false),
-                    Points = table.Column<int>(type: "INTEGER", nullable: false),
-                    KickedOut = table.Column<bool>(type: "INTEGER", nullable: false),
-                    AcknowledgedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    UserId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    MatchId = table.Column<Guid>(type: "TEXT", nullable: true)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    SeasonId = table.Column<int>(type: "integer", nullable: false),
+                    Reason = table.Column<string>(type: "text", nullable: false),
+                    Points = table.Column<int>(type: "integer", nullable: false),
+                    KickedOut = table.Column<bool>(type: "boolean", nullable: false),
+                    AcknowledgedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    MatchId = table.Column<Guid>(type: "uuid", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -204,11 +205,11 @@ namespace Infrastructure.Migrations
                 name: "RoleSlots",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    Role = table.Column<string>(type: "TEXT", nullable: false),
-                    AssignedUserId = table.Column<Guid>(type: "TEXT", nullable: true),
-                    MatchId = table.Column<Guid>(type: "TEXT", nullable: false)
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Role = table.Column<string>(type: "text", nullable: false),
+                    AssignedUserId = table.Column<Guid>(type: "uuid", nullable: true),
+                    MatchId = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -231,13 +232,13 @@ namespace Infrastructure.Migrations
                 name: "SeasonPoints",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    SeasonId = table.Column<int>(type: "INTEGER", nullable: false),
-                    Points = table.Column<int>(type: "INTEGER", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    UserId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    MatchId = table.Column<Guid>(type: "TEXT", nullable: true)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    SeasonId = table.Column<int>(type: "integer", nullable: false),
+                    Points = table.Column<int>(type: "integer", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    MatchId = table.Column<Guid>(type: "uuid", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -260,13 +261,13 @@ namespace Infrastructure.Migrations
                 name: "Subscriptions",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Role = table.Column<string>(type: "TEXT", nullable: false),
-                    Status = table.Column<string>(type: "TEXT", nullable: false),
-                    ConfirmedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    UserId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    MatchId = table.Column<Guid>(type: "TEXT", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Role = table.Column<string>(type: "text", nullable: false),
+                    Status = table.Column<string>(type: "text", nullable: false),
+                    ConfirmedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    MatchId = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
                 {
