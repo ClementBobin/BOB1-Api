@@ -15,10 +15,15 @@ using Scalar.AspNetCore;
 try
 {
     var builder = WebApplication.CreateSlimBuilder(args);
+
     var port = Environment.GetEnvironmentVariable("PORT") ?? "80";
     builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
-    var logger = LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
+    var logger = LogManager
+        .Setup()
+        .LoadConfigurationFromAppSettings()
+        .GetCurrentClassLogger();
+
     logger.Debug("init main");
 
     builder.Services.Configure<CookiePolicyOptions>(options =>
@@ -32,23 +37,41 @@ try
         options.AddPolicy("Frontend", policy =>
         {
             if (builder.Environment.IsDevelopment())
-                policy.WithOrigins("http://localhost:5173", "https://localhost:5173")
-                      .AllowAnyHeader().AllowAnyMethod().AllowCredentials();
+            {
+                policy
+                    .WithOrigins(
+                        "http://localhost:5173",
+                        "https://localhost:5173")
+                    .AllowAnyHeader()
+                    .AllowAnyMethod()
+                    .AllowCredentials();
+            }
             else
-                policy.WithOrigins(
-                        builder.Configuration.GetSection("Cors:Origins").Get<string[]>()
+            {
+                policy
+                    .WithOrigins(
+                        builder.Configuration
+                            .GetSection("Cors:Origins")
+                            .Get<string[]>()
                         ?? ["https://bob1.local"])
-                      .AllowAnyHeader().AllowAnyMethod().AllowCredentials();
+                    .AllowAnyHeader()
+                    .AllowAnyMethod()
+                    .AllowCredentials();
+            }
         });
     });
 
-    builder.Services.AddControllers()
+    builder.Services
+        .AddControllers()
         .AddJsonOptions(options =>
         {
-            options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+            options.JsonSerializerOptions.Converters.Add(
+                new System.Text.Json.Serialization.JsonStringEnumConverter());
         });
+
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddOpenApi();
+
     builder.Services.AddSwaggerGen(options =>
     {
         options.SwaggerDoc("v1", new OpenApiInfo
@@ -56,7 +79,9 @@ try
             Title = "Bob1 API",
             Version = "v1",
         });
+
         options.CustomSchemaIds(type => type.FullName);
+
         options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
         {
             Name = "Authorization",
@@ -66,42 +91,78 @@ try
             Scheme = "bearer",
             BearerFormat = "JWT",
         });
-        options.AddSecurityRequirement(doc => new OpenApiSecurityRequirement
-        {
-            [new OpenApiSecuritySchemeReference("Bearer", doc)] = [],
-        });
+
+        options.AddSecurityRequirement(doc =>
+            new OpenApiSecurityRequirement
+            {
+                [new OpenApiSecuritySchemeReference("Bearer", doc)] = [],
+            });
     });
 
-    // Extensions
-    builder.Services.AddDatabase(builder.Configuration, builder.Environment);
+    // Services
+    builder.Services.AddDatabase(
+        builder.Configuration,
+        builder.Environment);
+
     builder.Services.AddJwtAuth(builder.Configuration);
     builder.Services.AddAppServices(builder.Configuration);
     builder.Services.AddHealthChecks();
 
-    var app = builder.Build();
+    // ---------------------------------------------------------
+    // Migration command
+    // ---------------------------------------------------------
 
-    // Migrations + seed (dev: always seed; prod: migrate only)
-    using (var scope = app.Services.CreateScope())
+    if (args.Contains("--migrate"))
     {
-        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        if (app.Environment.IsDevelopment() || args.Contains("--seed"))
-            await DbInitializer.SeedAsync(context);
-        else
-            await context.Database.MigrateAsync();
+        var migrationApp = builder.Build();
+
+        using var scope = migrationApp.Services.CreateScope();
+
+        var context = scope.ServiceProvider
+            .GetRequiredService<AppDbContext>();
+
+        await context.Database.MigrateAsync();
+
+        return;
     }
 
-    // Docs (non-prod only)
+    // ---------------------------------------------------------
+    // Normal API
+    // ---------------------------------------------------------
+
+    var app = builder.Build();
+
+    // Seed only.
+    // Migrations are NOT automatically executed by the API.
+    if (app.Environment.IsDevelopment() || args.Contains("--seed"))
+    {
+        using var scope = app.Services.CreateScope();
+
+        var context = scope.ServiceProvider
+            .GetRequiredService<AppDbContext>();
+
+        await DbInitializer.SeedAsync(context);
+    }
+
+    // Docs
     var apiDocs = builder.Configuration["ApiDocs"] ?? "Scalar";
+
     if (!app.Environment.IsProduction())
     {
         app.MapOpenApi();
 
-        if (apiDocs.Equals("Swagger", StringComparison.OrdinalIgnoreCase))
+        if (apiDocs.Equals(
+                "Swagger",
+                StringComparison.OrdinalIgnoreCase))
         {
             app.UseSwagger();
+
             app.UseSwaggerUI(o =>
             {
-                o.SwaggerEndpoint("/swagger/v1/swagger.json", "v1");
+                o.SwaggerEndpoint(
+                    "/swagger/v1/swagger.json",
+                    "v1");
+
                 o.RoutePrefix = string.Empty;
             });
         }
@@ -111,31 +172,44 @@ try
         }
 
         app.MapGet("/", () => Results.Redirect(
-            apiDocs.Equals("Swagger", StringComparison.OrdinalIgnoreCase) ? "/swagger" : "/scalar/v1"
-        ));
+            apiDocs.Equals(
+                "Swagger",
+                StringComparison.OrdinalIgnoreCase)
+                    ? "/swagger"
+                    : "/scalar/v1"));
     }
 
     app.MapHealthChecks("/api/health");
 
-    // Middleware pipeline (order matters)
+    // Middleware
     app.UseForwardedHeaders(new ForwardedHeadersOptions
     {
-        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+        ForwardedHeaders =
+            ForwardedHeaders.XForwardedFor |
+            ForwardedHeaders.XForwardedProto,
     });
-    app.UseMiddleware<GlobalExceptionMiddleware>(); // global error handler
+
+    app.UseMiddleware<GlobalExceptionMiddleware>();
+
     app.UseHttpsRedirection();
     app.UseCors("Frontend");
     app.UseCookiePolicy();
     app.UseAuthentication();
     app.UseAuthorization();
+
     app.MapControllers();
 
     app.Run();
 }
 catch (Exception ex)
 {
-    var logger = LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
+    var logger = LogManager
+        .Setup()
+        .LoadConfigurationFromAppSettings()
+        .GetCurrentClassLogger();
+
     logger.Fatal(ex, "Application failed to start");
+
     throw;
 }
 
