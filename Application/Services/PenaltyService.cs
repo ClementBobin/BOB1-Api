@@ -4,6 +4,7 @@ using Application.Interfaces;
 
 using Domain.Dto;
 using Domain.Entities;
+using Tools;
 
 using Infrastructure.Interfaces;
 
@@ -35,6 +36,7 @@ public class PenaltyService : IPenaltyService
         var penalty = new Penalty
         {
             Id = Guid.NewGuid(),
+            SeasonId = SeasonHelper.CurrentSeasonId,
             UserId = request.UserId,
             MatchId = request.MatchId,
             Reason = request.Reason,
@@ -65,5 +67,5 @@ public class PenaltyService : IPenaltyService
     }
 
     private static PenaltyDto ToDto(Penalty p) =>
-        new(p.Id, p.Reason, p.Points, p.KickedOut, p.AcknowledgedAt, p.CreatedAt, p.UserId, p.MatchId);
+        new(p.Id, p.SeasonId, p.Reason, p.Points, p.KickedOut, p.AcknowledgedAt, p.CreatedAt, p.UserId, p.MatchId);
 }

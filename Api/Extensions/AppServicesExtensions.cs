@@ -25,6 +25,7 @@ public static class AppServicesExtensions
         services.AddScoped<IPenaltyRepository, PenaltyRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<IPointRuleRepository, PointRuleRepository>();
+        services.AddScoped<ISeasonPointRepository, SeasonPointRepository>();
         services.AddScoped<ILocationRepository, LocationRepository>();
 
         // ── Infrastructure services ───────────────────────────────────────
@@ -39,6 +40,7 @@ public static class AppServicesExtensions
         services.AddScoped<IAdminNotificationService, AdminNotificationService>();
         services.AddScoped<IPenaltyService, PenaltyService>();
         services.AddScoped<IPointRuleService, PointRuleService>();
+        services.AddScoped<ISeasonPointService, SeasonPointService>();
         services.AddScoped<ILocationService, LocationService>();
         services.AddScoped<IUserAdminService, UserAdminService>();
 

@@ -6,10 +6,8 @@ public record PointRuleDto(
     Guid Id,
     OfficialRole Role,
     int PointsOnJ15,
-    int PointsOnJ4,
-    int PointsEmergency);
+    int PointsOnJ4);
 
 public record UpdatePointRuleRequest(
     int PointsOnJ15,
-    int PointsOnJ4,
-    int PointsEmergency);
+    int PointsOnJ4);

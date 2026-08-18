@@ -1,14 +1,12 @@
 namespace Domain.Entities;
 
-public class Penalty
+public class SeasonPoint
 {
     public int SeasonId { get; set; } // year season starts, e.g. 2024 = 01/09/2024 → 31/08/2025
     public Guid Id { get; set; }
-    public string Reason { get; set; } = string.Empty;
     public int Points { get; set; }
-    public bool KickedOut { get; set; }
-    public DateTime? AcknowledgedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     public Guid UserId { get; set; }
     public User User { get; set; } = null!;

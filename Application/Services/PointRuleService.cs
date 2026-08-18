@@ -19,7 +19,7 @@ public class PointRuleService : IPointRuleService
     {
         _log.Debug("GetAllAsync");
         return (await _rules.GetAllAsync())
-            .Select(r => new PointRuleDto(r.Id, r.Role, r.PointsOnJ15, r.PointsOnJ4, r.PointsEmergency));
+            .Select(r => new PointRuleDto(r.Id, r.Role, r.PointsOnJ15, r.PointsOnJ4));
     }
 
     public async Task<PointRuleDto> UpdateAsync(Guid id, UpdatePointRuleRequest request)
@@ -31,9 +31,8 @@ public class PointRuleService : IPointRuleService
 
         rule.PointsOnJ15 = request.PointsOnJ15;
         rule.PointsOnJ4 = request.PointsOnJ4;
-        rule.PointsEmergency = request.PointsEmergency;
 
         await _rules.UpdateAsync(rule);
-        return new PointRuleDto(rule.Id, rule.Role, rule.PointsOnJ15, rule.PointsOnJ4, rule.PointsEmergency);
+        return new PointRuleDto(rule.Id, rule.Role, rule.PointsOnJ15, rule.PointsOnJ4);
     }
 }

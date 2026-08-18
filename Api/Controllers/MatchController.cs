@@ -17,12 +17,12 @@ public class MatchController : BaseController
 
     /// <summary>GET /api/matches</summary>
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<MatchDto>>> GetAll()
+    public async Task<ActionResult<IEnumerable<MinMatchDto>>> GetAll()
         => Ok(await _matches.GetAllAsync(CurrentUserId));
 
     /// <summary>GET /api/matches?year=2025&amp;month=11</summary>
     [HttpGet("by-month")]
-    public async Task<ActionResult<IEnumerable<MatchDto>>> GetByMonth(
+    public async Task<ActionResult<IEnumerable<MinMatchDto>>> GetByMonth(
         [FromQuery] int year, [FromQuery] int month)
         => Ok(await _matches.GetByMonthAsync(year, month, CurrentUserId));
 

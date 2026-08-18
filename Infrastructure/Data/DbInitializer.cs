@@ -94,7 +94,6 @@ public static class DbInitializer
             Role = role,
             PointsOnJ15 = role is OfficialRole.Arbitre1 ? 3 : 2,
             PointsOnJ4 = role is OfficialRole.Arbitre1 ? 5 : 4,
-            PointsEmergency = role is OfficialRole.Arbitre1 ? 8 : 6,
         }).ToList();
         db.PointRules.AddRange(pointRules);
 
@@ -117,8 +116,6 @@ public static class DbInitializer
                     AwayTeamId = divTeams[1].Id,
                     LocationId = faker.PickRandom(locations).Id,
                     DateUtc = matchDate,
-                    EmergencyDateUtc = matchDate.AddDays(-1),
-                    EmergencyPoints = 10,
                 };
 
                 // One slot per OfficialRole

@@ -8,5 +8,4 @@ public class PointRule
     public OfficialRole Role { get; set; }
     public int PointsOnJ15 { get; set; }
     public int PointsOnJ4 { get; set; }
-    public int PointsEmergency { get; set; }
 }
