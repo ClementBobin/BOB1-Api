@@ -16,7 +16,7 @@ try
 {
     var builder = WebApplication.CreateSlimBuilder(args);
 
-    var port = Environment.GetEnvironmentVariable("PORT") ?? "80";
+    var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
     builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
     var logger = LogManager
