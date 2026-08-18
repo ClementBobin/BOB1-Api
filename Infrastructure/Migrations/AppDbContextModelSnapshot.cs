@@ -171,6 +171,9 @@ namespace Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("SeasonId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("TEXT");
 
@@ -246,6 +249,9 @@ namespace Infrastructure.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Points")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SeasonId")
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("UpdatedAt")

@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260817082208_SeasonPoints_RemoveEmergency")]
-    partial class SeasonPoints_RemoveEmergency
+    [Migration("20260818123511_init")]
+    partial class init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -174,6 +174,9 @@ namespace Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("SeasonId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("TEXT");
 
@@ -249,6 +252,9 @@ namespace Infrastructure.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Points")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SeasonId")
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("UpdatedAt")

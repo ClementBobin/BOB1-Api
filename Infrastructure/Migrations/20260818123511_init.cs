@@ -29,7 +29,10 @@ namespace Infrastructure.Migrations
                 {
                     Id = table.Column<Guid>(type: "TEXT", nullable: false),
                     Name = table.Column<string>(type: "TEXT", nullable: false),
-                    Address = table.Column<string>(type: "TEXT", nullable: false)
+                    Address = table.Column<string>(type: "TEXT", nullable: false),
+                    Latitude = table.Column<double>(type: "REAL", nullable: true),
+                    Longitude = table.Column<double>(type: "REAL", nullable: true),
+                    GeocodedAt = table.Column<DateTime>(type: "TEXT", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -43,8 +46,7 @@ namespace Infrastructure.Migrations
                     Id = table.Column<Guid>(type: "TEXT", nullable: false),
                     Role = table.Column<string>(type: "TEXT", nullable: false),
                     PointsOnJ15 = table.Column<int>(type: "INTEGER", nullable: false),
-                    PointsOnJ4 = table.Column<int>(type: "INTEGER", nullable: false),
-                    PointsEmergency = table.Column<int>(type: "INTEGER", nullable: false)
+                    PointsOnJ4 = table.Column<int>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -93,8 +95,6 @@ namespace Infrastructure.Migrations
                 {
                     Id = table.Column<Guid>(type: "TEXT", nullable: false),
                     DateUtc = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    EmergencyDateUtc = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    EmergencyPoints = table.Column<int>(type: "INTEGER", nullable: false),
                     DivisionId = table.Column<Guid>(type: "TEXT", nullable: false),
                     HomeTeamId = table.Column<Guid>(type: "TEXT", nullable: false),
                     AwayTeamId = table.Column<Guid>(type: "TEXT", nullable: false),
@@ -138,9 +138,13 @@ namespace Infrastructure.Migrations
                     Title = table.Column<string>(type: "TEXT", nullable: false),
                     Body = table.Column<string>(type: "TEXT", nullable: false),
                     IsRead = table.Column<bool>(type: "INTEGER", nullable: false),
+                    IsRecursif = table.Column<bool>(type: "INTEGER", nullable: false),
+                    IsShowAtStart = table.Column<bool>(type: "INTEGER", nullable: false),
+                    ExpiresAt = table.Column<DateTime>(type: "TEXT", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
                     UserId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    MatchId = table.Column<Guid>(type: "TEXT", nullable: true)
+                    MatchId = table.Column<Guid>(type: "TEXT", nullable: true),
+                    CreatedByAdminId = table.Column<Guid>(type: "TEXT", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -149,6 +153,12 @@ namespace Infrastructure.Migrations
                         name: "FK_Notifications_Matches_MatchId",
                         column: x => x.MatchId,
                         principalTable: "Matches",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_Notifications_Users_CreatedByAdminId",
+                        column: x => x.CreatedByAdminId,
+                        principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.SetNull);
                     table.ForeignKey(
@@ -164,6 +174,7 @@ namespace Infrastructure.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    SeasonId = table.Column<int>(type: "INTEGER", nullable: false),
                     Reason = table.Column<string>(type: "TEXT", nullable: false),
                     Points = table.Column<int>(type: "INTEGER", nullable: false),
                     KickedOut = table.Column<bool>(type: "INTEGER", nullable: false),
@@ -214,6 +225,35 @@ namespace Infrastructure.Migrations
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.SetNull);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "SeasonPoints",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    SeasonId = table.Column<int>(type: "INTEGER", nullable: false),
+                    Points = table.Column<int>(type: "INTEGER", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    UserId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    MatchId = table.Column<Guid>(type: "TEXT", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SeasonPoints", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_SeasonPoints_Matches_MatchId",
+                        column: x => x.MatchId,
+                        principalTable: "Matches",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_SeasonPoints_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -272,6 +312,16 @@ namespace Infrastructure.Migrations
                 column: "LocationId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Notifications_CreatedByAdminId",
+                table: "Notifications",
+                column: "CreatedByAdminId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Notifications_ExpiresAt",
+                table: "Notifications",
+                column: "ExpiresAt");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Notifications_MatchId",
                 table: "Notifications",
                 column: "MatchId");
@@ -307,6 +357,18 @@ namespace Infrastructure.Migrations
                 table: "RoleSlots",
                 columns: new[] { "MatchId", "Role" },
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SeasonPoints_MatchId",
+                table: "SeasonPoints",
+                column: "MatchId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SeasonPoints_UserId_MatchId",
+                table: "SeasonPoints",
+                columns: new[] { "UserId", "MatchId" },
+                unique: true,
+                filter: "\"MatchId\" IS NOT NULL");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Subscriptions_MatchId",
@@ -345,6 +407,9 @@ namespace Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "RoleSlots");
+
+            migrationBuilder.DropTable(
+                name: "SeasonPoints");
 
             migrationBuilder.DropTable(
                 name: "Subscriptions");
