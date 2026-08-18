@@ -14,7 +14,9 @@ using Scalar.AspNetCore;
 
 try
 {
-    var builder = WebApplication.CreateBuilder(args);
+    var builder = WebApplication.CreateSlimBuilder(args);
+    var port = Environment.GetEnvironmentVariable("PORT") ?? "80";
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
     var logger = LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
     logger.Debug("init main");
