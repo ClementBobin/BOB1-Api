@@ -1,7 +1,6 @@
 namespace Api.Middleware;
 
-using System.Text.Json;
-
+using Microsoft.AspNetCore.Mvc;
 using NLog;
 
 public class GlobalExceptionMiddleware
@@ -9,7 +8,8 @@ public class GlobalExceptionMiddleware
     private readonly RequestDelegate _next;
     private static readonly ILogger _log = LogManager.GetCurrentClassLogger();
 
-    public GlobalExceptionMiddleware(RequestDelegate next) => _next = next;
+    public GlobalExceptionMiddleware(RequestDelegate next)
+        => _next = next;
 
     public async Task InvokeAsync(HttpContext ctx)
     {
@@ -27,26 +27,46 @@ public class GlobalExceptionMiddleware
     {
         var (status, message) = ex switch
         {
-            KeyNotFoundException => (StatusCodes.Status404NotFound, ex.Message),
-            UnauthorizedAccessException => (StatusCodes.Status403Forbidden, ex.Message),
-            InvalidOperationException => (StatusCodes.Status400BadRequest, ex.Message),
-            ArgumentException => (StatusCodes.Status400BadRequest, ex.Message),
-            _ => (StatusCodes.Status500InternalServerError, "An unexpected error occurred."),
+            KeyNotFoundException =>
+                (StatusCodes.Status404NotFound, ex.Message),
+
+            UnauthorizedAccessException =>
+                (StatusCodes.Status401Unauthorized, ex.Message),
+
+            ArgumentException =>
+                (StatusCodes.Status400BadRequest, ex.Message),
+
+            _ =>
+                (StatusCodes.Status500InternalServerError,
+                    "An unexpected error occurred.")
         };
 
-        if (status == StatusCodes.Status500InternalServerError)
+        if (status >= 500)
             _log.Error(ex, "Unhandled exception");
         else
             _log.Warn(ex, "Handled exception → HTTP {Status}", status);
 
-        ctx.Response.ContentType = "application/json";
-        ctx.Response.StatusCode = status;
-
-        await ctx.Response.WriteAsync(JsonSerializer.Serialize(new
+        if (ctx.Response.HasStarted)
         {
-            status,
-            message,
-            traceId = ctx.TraceIdentifier,
-        }));
+            _log.Error(ex, "Response already started; cannot write error response.");
+            return;
+        }
+
+        ctx.Response.StatusCode = status;
+        ctx.Response.ContentType = "application/problem+json";
+
+        var problem = new ProblemDetails
+        {
+            Status = status,
+            Title = status >= 500
+                ? "Internal Server Error"
+                : "Request failed",
+            Detail = message,
+            Instance = ctx.Request.Path,
+        };
+
+        problem.Extensions["traceId"] = ctx.TraceIdentifier;
+
+        await ctx.Response.WriteAsJsonAsync(problem);
     }
 }
