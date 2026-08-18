@@ -2,6 +2,7 @@ namespace Domain.Dto;
 
 public record PenaltyDto(
     Guid Id,
+    int SeasonId,
     string Reason,
     int Points,
     bool KickedOut,

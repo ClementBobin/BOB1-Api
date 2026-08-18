@@ -19,6 +19,7 @@ public class AppDbContext : DbContext
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
     public DbSet<Penalty> Penalties => Set<Penalty>();
     public DbSet<AppNotification> Notifications => Set<AppNotification>();
+    public DbSet<SeasonPoint> SeasonPoints => Set<SeasonPoint>();
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
@@ -135,6 +136,26 @@ public class AppDbContext : DbContext
              .HasForeignKey(p => p.MatchId)
              .IsRequired(false)
              .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ── SeasonPoint ───────────────────────────────────────────────────
+        mb.Entity<SeasonPoint>(e =>
+        {
+            e.HasOne(sp => sp.User)
+             .WithMany()
+             .HasForeignKey(sp => sp.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(sp => sp.Match)
+             .WithMany()
+             .HasForeignKey(sp => sp.MatchId)
+             .IsRequired(false)
+             .OnDelete(DeleteBehavior.SetNull);
+
+            // One entry per user per match (penalties have null MatchId so no unique index on those)
+            e.HasIndex(sp => new { sp.UserId, sp.MatchId })
+             .HasFilter("\"MatchId\" IS NOT NULL")
+             .IsUnique();
         });
 
         // ── AppNotification ───────────────────────────────────────────────
