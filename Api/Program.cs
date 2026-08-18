@@ -115,7 +115,7 @@ try
         ));
     }
 
-    app.MapHealthChecks("/health");
+    app.MapHealthChecks("/api/health");
 
     // Middleware pipeline (order matters)
     app.UseForwardedHeaders(new ForwardedHeadersOptions
