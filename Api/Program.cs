@@ -32,34 +32,34 @@ try
         options.MinimumSameSitePolicy = SameSiteMode.None;
     });
 
-    builder.Services.AddCors(options =>
-    {
-        options.AddPolicy("Frontend", policy =>
-        {
-            if (builder.Environment.IsDevelopment())
-            {
-                policy
-                    .WithOrigins(
-                        "http://localhost:5173",
-                        "https://localhost:5173")
-                    .AllowAnyHeader()
-                    .AllowAnyMethod()
-                    .AllowCredentials();
-            }
-            else
-            {
-                policy
-                    .WithOrigins(
-                        builder.Configuration
-                            .GetSection("Cors:Origins")
-                            .Get<string[]>()
-                        ?? ["https://bob1.local"])
-                    .AllowAnyHeader()
-                    .AllowAnyMethod()
-                    .AllowCredentials();
-            }
-        });
-    });
+    // builder.Services.AddCors(options =>
+    // {
+    //     options.AddPolicy("Frontend", policy =>
+    //     {
+    //         if (builder.Environment.IsDevelopment())
+    //         {
+    //             policy
+    //                 .WithOrigins(
+    //                     "http://localhost:5173",
+    //                     "https://localhost:5173")
+    //                 .AllowAnyHeader()
+    //                 .AllowAnyMethod()
+    //                 .AllowCredentials();
+    //         }
+    //         else
+    //         {
+    //             policy
+    //                 .WithOrigins(
+    //                     builder.Configuration
+    //                         .GetSection("Cors:Origins")
+    //                         .Get<string[]>()
+    //                     ?? ["https://bob1.local"])
+    //                 .AllowAnyHeader()
+    //                 .AllowAnyMethod()
+    //                 .AllowCredentials();
+    //         }
+    //     });
+    // });
 
     builder.Services
         .AddControllers()
