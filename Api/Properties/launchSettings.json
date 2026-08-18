@@ -6,7 +6,7 @@
       "dotnetRunMessages": true,
       "launchBrowser": true,
       "launchUrl": "scalar/v1",
-      "applicationUrl": "http://0.0.0.0:8080",
+      "port": "8080",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "swagger": "Scalar"
@@ -17,7 +17,7 @@
       "dotnetRunMessages": true,
       "launchBrowser": true,
       "launchUrl": "",
-      "applicationUrl": "http://localhost:5104",
+      "port": "5104",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "ApiDocs": "Swagger"
@@ -50,7 +50,7 @@
       "dotnetRunMessages": true,
       "launchBrowser": true,
       "launchUrl": "scalar/v1",
-      "applicationUrl": "http://localhost:5104",
+      "port": "5104",
       "commandLineArgs": "--seed",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
@@ -67,15 +67,6 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "swagger": "Scalar"
-      }
-    },
-    "Docker": {
-      "commandName": "Docker",
-      "commandLineArgs": "--seed",
-      "launchBrowser": true,
-      "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
       }
     }
   }
