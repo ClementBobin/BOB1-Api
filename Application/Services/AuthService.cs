@@ -36,7 +36,7 @@ public class AuthService : IAuthService
 
         var token = GenerateToken(user);
         _log.Info("Login successful for {Email}", user.Email);
-        return new LoginResponse(token, ToDto(user));
+        return new LoginResponse(token);
     }
 
     public async Task<UserDto> RegisterAsync(RegisterRequest request)
@@ -65,6 +65,32 @@ public class AuthService : IAuthService
         var user = await _users.GetByIdAsync(userId)
             ?? throw new KeyNotFoundException($"User {userId} not found.");
         return ToDto(user);
+    }
+
+    public async Task<LoginResponse> GenerateBiometricTokenAsync(Guid userId)
+    {
+        var user = await _users.GetByIdAsync(userId)
+            ?? throw new KeyNotFoundException($"User {userId} not found.");
+
+        var token = _users.GenerateBiometricToken(user);
+        return new LoginResponse(token);
+    }
+
+    public async Task RemoveBiometricTokenAsync(Guid userId)
+    {
+        var user = await _users.GetByIdAsync(userId)
+            ?? throw new KeyNotFoundException($"User {userId} not found.");
+
+        await _users.RemoveBiometricToken(user);
+    }
+
+    public async Task<LoginResponse> LoginWithBiometricTokenAsync(BiometricLoginRequest request)
+    {
+        var user = await _users.GetByBiometricTokenAsync(request.Token)
+            ?? throw new UnauthorizedAccessException("Invalid biometric token.");
+
+        var token = GenerateToken(user);
+        return new LoginResponse(token);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────

@@ -9,6 +9,7 @@ public class User
     public string PasswordHash { get; set; } = string.Empty;
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
+    public Guid? BiometricToken { get; set; };
     public UserRole Role { get; set; } = UserRole.Official;
 
     // Navigation

@@ -49,4 +49,31 @@ public class AuthController : BaseController
         Response.Cookies.Delete("bob1_token");
         return NoContent();
     }
+
+    /// <summary>GET /api/auth/generate-biometric-token</summary>
+    [HttpGet("generate-biometric-token")]
+    [Authorize]
+    public async Task<ActionResult<LoginResponse>> GenerateBiometricToken()
+    {
+        var token = await _auth.GenerateBiometricTokenAsync(CurrentUserId);
+        return Ok(token);
+    }
+
+    /// <summary>POST /api/auth/biometric-remove</summary>
+    [HttpPost("biometric-remove")]
+    [Authorize]
+    public async Task<ActionResult> RemoveBiometricToken()
+    {
+        await _auth.RemoveBiometricTokenAsync(CurrentUserId);
+        return NoContent();
+    }
+
+    /// <summary>POST /api/auth/biometric-login</summary>
+    [HttpPost("biometric-login")]
+    [AllowAnonymous]
+    public async Task<ActionResult<LoginResponse>> BiometricLogin([FromBody] BiometricLoginRequest request)
+    {
+        var result = await _auth.LoginWithBiometricAsync(request.BioToken);
+        return Ok(result);
+    }
 }

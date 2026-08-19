@@ -8,4 +8,7 @@ public interface IAuthService
     Task<LoginResponse> LoginAsync(LoginRequest request);
     Task<UserDto> RegisterAsync(RegisterRequest request);
     Task<UserDto> GetCurrentUserAsync(Guid userId);
+    Task<LoginResponse> GenerateBiometricTokenAsync(Guid userId);
+    Task RemoveBiometricTokenAsync(Guid userId);
+    Task<LoginResponse> LoginWithBiometricTokenAsync(BiometricLoginRequest request);
 }
