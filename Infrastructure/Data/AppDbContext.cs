@@ -20,6 +20,7 @@ public class AppDbContext : DbContext
     public DbSet<Penalty> Penalties => Set<Penalty>();
     public DbSet<AppNotification> Notifications => Set<AppNotification>();
     public DbSet<SeasonPoint> SeasonPoints => Set<SeasonPoint>();
+    public DbSet<UserRoleMapping> UserRoles => Set<UserRoleMapping>();
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
@@ -29,7 +30,20 @@ public class AppDbContext : DbContext
         mb.Entity<User>(e =>
         {
             e.HasIndex(u => u.Email).IsUnique();
-            e.Property(u => u.Role).HasConversion<string>();
+        });
+
+        // Configure the join table explicitly
+        mb.Entity<UserRoleMapping>(e =>
+        {
+            e.ToTable("UserRoles");
+            e.HasKey(ur => new { ur.UserId, ur.Role });
+
+            e.HasOne<User>()
+             .WithMany(u => u.Roles)
+             .HasForeignKey(ur => ur.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.Property(ur => ur.Role).HasConversion<string>();
         });
 
         // ── Division ──────────────────────────────────────────────────────

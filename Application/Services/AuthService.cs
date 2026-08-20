@@ -1,15 +1,11 @@
 namespace Application.Services;
 
 using System.Security.Claims;
-
 using Application.Interfaces;
-
 using Domain.Dto;
 using Domain.Entities;
 using Domain.Enums;
-
 using Infrastructure.Interfaces;
-
 using NLog;
 
 public class AuthService : IAuthService
@@ -46,14 +42,18 @@ public class AuthService : IAuthService
         if (await _users.ExistsByEmailAsync(request.Email))
             throw new InvalidOperationException($"Email '{request.Email}' is already taken.");
 
+        var userId = Guid.NewGuid();
         var user = new User
         {
-            Id = Guid.NewGuid(),
+            Id = userId,
             Email = request.Email.ToLowerInvariant(),
             FirstName = request.FirstName,
             LastName = request.LastName,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-            Role = UserRole.Official,
+            Roles = new List<UserRoleMapping>
+            {
+                new UserRoleMapping { UserId = userId, Role = UserRole.Official }
+            }
         };
 
         await _users.AddAsync(user);
@@ -71,15 +71,20 @@ public class AuthService : IAuthService
 
     private string GenerateToken(User user)
     {
-        var claims = new[]
+        var claims = new List<Claim>
         {
-            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new Claim(ClaimTypes.Email, user.Email),
-            new Claim(ClaimTypes.Role, user.Role.ToString()),
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new(ClaimTypes.Email, user.Email),
         };
+
+        foreach (var roleMapping in user.Roles)
+        {
+            claims.Add(new(ClaimTypes.Role, roleMapping.Role.ToString()));
+        }
+
         return _tokens.GenerateToken(claims);
     }
 
     private static UserDto ToDto(User u) =>
-        new(u.Id, u.Email, u.FirstName, u.LastName, u.Role);
+        new(u.Id, u.Email, u.FirstName, u.LastName, u.Roles.Select(r => r.Role).ToList());
 }
