@@ -9,10 +9,12 @@ public class User
     public string PasswordHash { get; set; } = string.Empty;
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
-    public Guid? BiometricToken { get; set; };
-    public UserRole Role { get; set; } = UserRole.Official;
+    public Guid? BiometricToken { get; set; }
 
-    // Navigation
+    // Navigation - using the mapping entity instead of the enum directly
+    public ICollection<UserRoleMapping> Roles { get; set; } = [];
+
+    // Other Navigation collections...
     public ICollection<Subscription> Subscriptions { get; set; } = [];
     public ICollection<Penalty> Penalties { get; set; } = [];
     public ICollection<AppNotification> Notifications { get; set; } = [];

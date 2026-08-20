@@ -2,7 +2,6 @@ using Bogus;
 using NLog;
 using Microsoft.EntityFrameworkCore;
 
-
 namespace Infrastructure.Data;
 
 using Domain.Entities;
@@ -70,18 +69,26 @@ public static class DbInitializer
             .RuleFor(u => u.LastName, f => f.Name.LastName())
             .RuleFor(u => u.Email, (f, u) => f.Internet.Email(u.FirstName, u.LastName).ToLower())
             .RuleFor(u => u.PasswordHash, _ => BCrypt.Net.BCrypt.HashPassword("Password123!"))
-            .RuleFor(u => u.Role, _ => UserRole.Official);
+            .RuleFor(u => u.Roles, (f, u) => new List<UserRoleMapping>
+            {
+                new UserRoleMapping { UserId = u.Id, Role = UserRole.Official }
+            });
 
         var officials = userFaker.Generate(10);
 
+        var adminId = Guid.NewGuid();
         var admin = new User
         {
-            Id = Guid.NewGuid(),
+            Id = adminId,
             FirstName = "Admin",
             LastName = "Bob1",
             Email = "admin@bob1.local",
             PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!"),
-            Role = UserRole.Admin,
+            Roles = new List<UserRoleMapping>
+            {
+                new UserRoleMapping { UserId = adminId, Role = UserRole.Admin },
+                new UserRoleMapping { UserId = adminId, Role = UserRole.Official } // Optional: Admin can also be an official
+            }
         };
 
         db.Users.Add(admin);
