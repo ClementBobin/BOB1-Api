@@ -17,7 +17,7 @@ try
     var builder = WebApplication.CreateSlimBuilder(args);
 
     var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-    builder.WebHost.UseUrls($"https://*:{port}");
+    builder.WebHost.UseUrls($"http://*:{port}");
 
     var logger = LogManager
         .Setup()
@@ -179,6 +179,7 @@ try
                     : "/scalar/v1"));
     }
 
+    app.MapGet("/", () => Results.Ok("BOB1 API running"));
     app.MapHealthChecks("/api/health");
 
     // Middleware
@@ -191,8 +192,7 @@ try
 
     app.UseMiddleware<GlobalExceptionMiddleware>();
 
-    app.UseHttpsRedirection();
-    app.UseCors("Frontend");
+    //app.UseCors("Frontend");
     app.UseCookiePolicy();
     app.UseAuthentication();
     app.UseAuthorization();
