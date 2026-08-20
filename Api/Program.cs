@@ -17,7 +17,7 @@ try
     var builder = WebApplication.CreateSlimBuilder(args);
 
     var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+    builder.WebHost.UseUrls($"http://*:{port}");
 
     var logger = LogManager
         .Setup()
@@ -203,6 +203,7 @@ try
 }
 catch (Exception ex)
 {
+    Console.Error.WriteLine($"FATAL STARTUP EXCEPTION: {ex}");
     var logger = LogManager
         .Setup()
         .LoadConfigurationFromAppSettings()
