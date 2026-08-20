@@ -71,9 +71,13 @@ public class AuthController : BaseController
     /// <summary>POST /api/auth/biometric-login</summary>
     [HttpPost("biometric-login")]
     [AllowAnonymous]
-    public async Task<ActionResult<LoginResponse>> BiometricLogin([FromBody] BiometricLoginRequest request)
+    public async Task<ActionResult<LoginResponse>> BiometricLogin()
     {
-        var result = await _auth.LoginWithBiometricAsync(request.BioToken);
+        var bioToken = Request.Headers["X-Bio-Token"].FirstOrDefault();
+        if (string.IsNullOrEmpty(bioToken))
+            return BadRequest("X-Bio-Token header manquant.");
+
+        var result = await _auth.LoginWithBiometricTokenAsync(bioToken);
         return Ok(result);
     }
 }

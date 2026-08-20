@@ -4,7 +4,10 @@ using Domain.Enums;
 
 public record LoginRequest(string Email, string Password);
 
-public record LoginResponse(string Token);
+public record LoginResponse(
+    string Token,
+    long ExpiresTime
+);
 
 public record RegisterRequest(
     string Email,

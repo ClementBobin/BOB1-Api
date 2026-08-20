@@ -60,13 +60,24 @@ public class UserRepository : IUserRepository
         => await _db.Users.AnyAsync(u => u.Email == email.ToLowerInvariant());
 
     public async Task<User?> GetByBiometricTokenAsync(string token)
-        => await _db.Users.FirstOrDefaultAsync(u => u.BiometricToken == token);
+    {
+        if (!Guid.TryParse(token, out var biometricGuid))
+        {
+            return null; // Or throw an exception depending on your design
+        }
 
-    public async Task GenerateBiometricTokenAsync(User user)
+        return await _db.Users
+            .Include(u => u.Roles) // Ensure roles are loaded if needed
+            .FirstOrDefaultAsync(u => u.BiometricToken == biometricGuid);
+    }
+
+    public async Task<string> GenerateBiometricTokenAsync(User user)
     {
         Log.Info("GenerateBiometricTokenAsync {Id}", user.Id);
-        user.BiometricToken = Guid.NewGuid().ToString();
+        var newToken = Guid.NewGuid();
+        user.BiometricToken = newToken;
         await _db.SaveChangesAsync();
+        return newToken.ToString(); // Return the new token as a string
     }
 
     public async Task RemoveBiometricTokenAsync(User user)

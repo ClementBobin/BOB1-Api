@@ -10,13 +10,15 @@ using Infrastructure.Interfaces;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
+using Domain.Dto;
+
 public class JwtTokenGenerator : ITokenGenerator
 {
     private readonly JwtOptions _options;
 
     public JwtTokenGenerator(IOptions<JwtOptions> options) => _options = options.Value;
 
-    public string GenerateToken(IEnumerable<Claim> claims)
+    public LoginResponse GenerateToken(IEnumerable<Claim> claims)
     {
         var keyBytes = Encoding.UTF8.GetBytes(_options.Key);
         var credentials = new SigningCredentials(
@@ -29,6 +31,12 @@ public class JwtTokenGenerator : ITokenGenerator
             expires: DateTime.UtcNow.AddMinutes(_options.ExpiryMinutes),
             signingCredentials: credentials);
 
-        return new JwtSecurityTokenHandler().WriteToken(token);
+
+        var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+
+        return new LoginResponse(
+            Token: tokenString,
+            ExpiresTime: new DateTimeOffset(expiresAt).ToUnixTimeMilliseconds()
+        );
     }
 }

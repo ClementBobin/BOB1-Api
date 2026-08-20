@@ -11,10 +11,10 @@ using NLog;
 public class AuthService : IAuthService
 {
     private readonly IUserRepository _users;
-    private readonly Infrastructure.Interfaces.ITokenGenerator _tokens;
+    private readonly ITokenGenerator _tokens;
     private static readonly ILogger _log = LogManager.GetCurrentClassLogger();
 
-    public AuthService(IUserRepository users, Infrastructure.Interfaces.ITokenGenerator tokens)
+    public AuthService(IUserRepository users, ITokenGenerator tokens)
     {
         _users = users;
         _tokens = tokens;
@@ -32,7 +32,7 @@ public class AuthService : IAuthService
 
         var token = GenerateToken(user);
         _log.Info("Login successful for {Email}", user.Email);
-        return new LoginResponse(token);
+        return token;
     }
 
     public async Task<UserDto> RegisterAsync(RegisterRequest request)
@@ -72,8 +72,7 @@ public class AuthService : IAuthService
         var user = await _users.GetByIdAsync(userId)
             ?? throw new KeyNotFoundException($"User {userId} not found.");
 
-        var token = _users.GenerateBiometricToken(user);
-        return new LoginResponse(token);
+        return await _users.GenerateBiometricTokenAsync(user);
     }
 
     public async Task RemoveBiometricTokenAsync(Guid userId)
@@ -81,21 +80,21 @@ public class AuthService : IAuthService
         var user = await _users.GetByIdAsync(userId)
             ?? throw new KeyNotFoundException($"User {userId} not found.");
 
-        await _users.RemoveBiometricToken(user);
+        await _users.RemoveBiometricTokenAsync(user);
     }
 
-    public async Task<LoginResponse> LoginWithBiometricTokenAsync(BiometricLoginRequest request)
+    public async Task<LoginResponse> LoginWithBiometricTokenAsync(string bioToken)
     {
-        var user = await _users.GetByBiometricTokenAsync(request.Token)
+        var user = await _users.GetByBiometricTokenAsync(bioToken)
             ?? throw new UnauthorizedAccessException("Invalid biometric token.");
 
         var token = GenerateToken(user);
-        return new LoginResponse(token);
+        return token;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────
 
-    private string GenerateToken(User user)
+    private LoginResponse GenerateToken(User user)
     {
         var claims = new List<Claim>
         {

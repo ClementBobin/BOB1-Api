@@ -12,6 +12,6 @@ public interface IUserRepository
     Task DeleteAsync(Guid id);
     Task<bool> ExistsByEmailAsync(string email); // used by AuthService
     Task<User?> GetByBiometricTokenAsync(string token); // used by AuthService
-    Task GenerateBiometricTokenAsync(User user); // used by AuthService
+    Task<string> GenerateBiometricTokenAsync(User user); // used by AuthService
     Task RemoveBiometricTokenAsync(User user); // used by AuthService
 }
