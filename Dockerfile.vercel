@@ -12,7 +12,7 @@ RUN dotnet publish ./Api/Api.csproj \
     /p:UseAppHost=false
 
 # Optional but extremely useful while debugging:
-# RUN ls -la /app/publish && test -f /app/publish/Api.dll
+RUN ls -la /app/publish && test -f /app/publish/Api.dll
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled AS final
 
