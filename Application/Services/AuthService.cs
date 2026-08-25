@@ -67,12 +67,13 @@ public class AuthService : IAuthService
         return ToDto(user);
     }
 
-    public async Task<LoginResponse> GenerateBiometricTokenAsync(Guid userId)
+    public async Task<GenerateBiometricTokenResponse> GenerateBiometricTokenAsync(Guid userId)
     {
         var user = await _users.GetByIdAsync(userId)
             ?? throw new KeyNotFoundException($"User {userId} not found.");
 
-        return await _users.GenerateBiometricTokenAsync(user);
+        var token = await _users.GenerateBiometricTokenAsync(user);
+        return new GenerateBiometricTokenResponse(Token: token);
     }
 
     public async Task RemoveBiometricTokenAsync(Guid userId)

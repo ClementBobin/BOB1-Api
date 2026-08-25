@@ -77,7 +77,7 @@ public class UserRepository : IUserRepository
         var newToken = Guid.NewGuid();
         user.BiometricToken = newToken;
         await _db.SaveChangesAsync();
-        return newToken.ToString(); // Return the new token as a string
+        return newToken.ToString();
     }
 
     public async Task RemoveBiometricTokenAsync(User user)

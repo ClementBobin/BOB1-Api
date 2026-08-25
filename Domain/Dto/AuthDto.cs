@@ -4,6 +4,8 @@ using Domain.Enums;
 
 public record LoginRequest(string Email, string Password);
 
+public record GenerateBiometricTokenResponse(string Token);
+
 public record LoginResponse(
     string Token,
     long ExpiresTime

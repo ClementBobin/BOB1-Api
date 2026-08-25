@@ -53,7 +53,7 @@ public class AuthController : BaseController
     /// <summary>GET /api/auth/generate-biometric-token</summary>
     [HttpGet("generate-biometric-token")]
     [Authorize]
-    public async Task<ActionResult<LoginResponse>> GenerateBiometricToken()
+    public async Task<ActionResult<GenerateBiometricTokenResponse>> GenerateBiometricToken()
     {
         var token = await _auth.GenerateBiometricTokenAsync(CurrentUserId);
         return Ok(token);
