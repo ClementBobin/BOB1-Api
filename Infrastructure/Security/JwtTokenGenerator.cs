@@ -24,13 +24,14 @@ public class JwtTokenGenerator : ITokenGenerator
         var credentials = new SigningCredentials(
             new SymmetricSecurityKey(keyBytes), SecurityAlgorithms.HmacSha256);
 
+        var expiresAt = DateTime.UtcNow.AddMinutes(_options.ExpiryMinutes);
+
         var token = new JwtSecurityToken(
             issuer: _options.Issuer,
             audience: _options.Audience,
             claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(_options.ExpiryMinutes),
+            expires: expiresAt,
             signingCredentials: credentials);
-
 
         var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
 
