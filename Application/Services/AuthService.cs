@@ -1,24 +1,20 @@
 namespace Application.Services;
 
 using System.Security.Claims;
-
 using Application.Interfaces;
-
 using Domain.Dto;
 using Domain.Entities;
 using Domain.Enums;
-
 using Infrastructure.Interfaces;
-
 using NLog;
 
 public class AuthService : IAuthService
 {
     private readonly IUserRepository _users;
-    private readonly Infrastructure.Interfaces.ITokenGenerator _tokens;
+    private readonly ITokenGenerator _tokens;
     private static readonly ILogger _log = LogManager.GetCurrentClassLogger();
 
-    public AuthService(IUserRepository users, Infrastructure.Interfaces.ITokenGenerator tokens)
+    public AuthService(IUserRepository users, ITokenGenerator tokens)
     {
         _users = users;
         _tokens = tokens;
@@ -36,7 +32,7 @@ public class AuthService : IAuthService
 
         var token = GenerateToken(user);
         _log.Info("Login successful for {Email}", user.Email);
-        return new LoginResponse(token, ToDto(user));
+        return token;
     }
 
     public async Task<UserDto> RegisterAsync(RegisterRequest request)
@@ -46,14 +42,18 @@ public class AuthService : IAuthService
         if (await _users.ExistsByEmailAsync(request.Email))
             throw new InvalidOperationException($"Email '{request.Email}' is already taken.");
 
+        var userId = Guid.NewGuid();
         var user = new User
         {
-            Id = Guid.NewGuid(),
+            Id = userId,
             Email = request.Email.ToLowerInvariant(),
             FirstName = request.FirstName,
             LastName = request.LastName,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-            Role = UserRole.Official,
+            Roles = new List<UserRoleMapping>
+            {
+                new UserRoleMapping { UserId = userId, Role = UserRole.Official }
+            }
         };
 
         await _users.AddAsync(user);
@@ -67,19 +67,49 @@ public class AuthService : IAuthService
         return ToDto(user);
     }
 
+    public async Task<LoginResponse> GenerateBiometricTokenAsync(Guid userId)
+    {
+        var user = await _users.GetByIdAsync(userId)
+            ?? throw new KeyNotFoundException($"User {userId} not found.");
+
+        return await _users.GenerateBiometricTokenAsync(user);
+    }
+
+    public async Task RemoveBiometricTokenAsync(Guid userId)
+    {
+        var user = await _users.GetByIdAsync(userId)
+            ?? throw new KeyNotFoundException($"User {userId} not found.");
+
+        await _users.RemoveBiometricTokenAsync(user);
+    }
+
+    public async Task<LoginResponse> LoginWithBiometricTokenAsync(string bioToken)
+    {
+        var user = await _users.GetByBiometricTokenAsync(bioToken)
+            ?? throw new UnauthorizedAccessException("Invalid biometric token.");
+
+        var token = GenerateToken(user);
+        return token;
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────
 
-    private string GenerateToken(User user)
+    private LoginResponse GenerateToken(User user)
     {
-        var claims = new[]
+        var claims = new List<Claim>
         {
-            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new Claim(ClaimTypes.Email, user.Email),
-            new Claim(ClaimTypes.Role, user.Role.ToString()),
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new(ClaimTypes.Email, user.Email),
         };
+
+        foreach (var roleMapping in user.Roles)
+        {
+            claims.Add(new(ClaimTypes.Role, roleMapping.Role.ToString()));
+        }
+
         return _tokens.GenerateToken(claims);
     }
 
     private static UserDto ToDto(User u) =>
-        new(u.Id, u.Email, u.FirstName, u.LastName, u.Role);
+        new(u.Id, u.Email, u.FirstName, u.LastName, u.Roles.Select(r => r.Role).ToList());
 }

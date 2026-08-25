@@ -1,13 +1,10 @@
 namespace Application.Services;
 
 using Application.Interfaces;
-
 using Domain.Dto;
 using Domain.Entities;
 using Domain.Enums;
-
 using Infrastructure.Interfaces;
-
 using NLog;
 
 public class AdminNotificationService : IAdminNotificationService
@@ -25,7 +22,6 @@ public class AdminNotificationService : IAdminNotificationService
     public async Task<IEnumerable<NotificationDto>> GetAllAsync()
     {
         Log.Debug("GetAllAsync (admin)");
-        // Return all notifications created by any admin (CreatedByAdminId is set)
         var all = await _notifications.GetAllAdminCreatedAsync();
         return all.Select(NotificationService.ToDto);
     }
@@ -108,7 +104,7 @@ public class AdminNotificationService : IAdminNotificationService
         return scope switch
         {
             ScopeType.All => all,
-            ScopeType.Referes => all.Where(u => u.Role == UserRole.Official),
+            ScopeType.Referes => all.Where(u => u.Roles.Any(r => r.Role == UserRole.Official)),
             ScopeType.User => targetUserIds is null || !targetUserIds.Any()
                 ? throw new ArgumentException("TargetUserIds required when Scope is User.")
                 : all.Where(u => targetUserIds.Contains(u.Id)),

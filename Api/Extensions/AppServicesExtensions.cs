@@ -16,6 +16,9 @@ public static class AppServicesExtensions
         // ── JWT options (used by JwtTokenGenerator in Infrastructure) ─────
         services.Configure<JwtOptions>(config.GetSection("Jwt"));
 
+        services.Configure<PlayIntegrityOptions>(config.GetSection("PlayIntegrity"));
+        services.AddHttpClient<IIntegrityService, PlayIntegrityService>();
+
         // ── Repositories ──────────────────────────────────────────────────
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IMatchRepository, MatchRepository>();
