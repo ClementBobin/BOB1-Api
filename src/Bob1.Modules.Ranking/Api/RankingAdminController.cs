@@ -1,0 +1,182 @@
+using Bob1.Shared.Contracts.Identity;
+using Bob1.Shared.Contracts.Notifications;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Bob1.Modules.Ranking.Api;
+
+[Route(ApiRoutes.V1 + "/admin")]
+[Authorize(Policy = Policies.Admin)]
+[Tags("Ranking (admin)")]
+internal sealed class RankingAdminController(RankingDbContext db, IIdentityApi identity, ICurrentUser user, TimeProvider clock)
+    : ApiControllerBase
+{
+    // Person (or family) rankings (admin view, bigger page)
+    [HttpQuery("rankings")]
+    public async Task<IActionResult> Rankings([FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] RankingQuery? query, CancellationToken ct) =>
+        Ok(await RankingBuilders.BuildAsync(query ?? new(null, null, null, null, null, null), 50, 500, db, identity, user, clock, ct));
+
+    [HttpPut("ranking-rules/{key}")]
+    public async Task<IActionResult> UpdateRule(string key, UpdateRuleRequest r, CancellationToken ct)
+    {
+        var rule = await db.Rules.SingleOrDefaultAsync(x => x.Key == key, ct);
+        if (rule is null) return Error.NotFound("rule.not_found", "Rule not found.").ToProblem();
+        if (Math.Abs(r.Points) > 1000) return Error.Validation("points.out_of_range", "Points must be between -1000 and 1000.").ToProblem();
+        if (r.PointsJ15.HasValue && Math.Abs(r.PointsJ15.Value) > 1000) return Error.Validation("points_j15.out_of_range", "Points J-15 must be between -1000 and 1000.").ToProblem();
+        if (r.PointsJ4.HasValue && Math.Abs(r.PointsJ4.Value) > 1000) return Error.Validation("points_j4.out_of_range", "Points J-4 must be between -1000 and 1000.").ToProblem();
+
+        rule.Points = r.Points;
+        if (!string.IsNullOrWhiteSpace(r.Label)) rule.Label = r.Label.Trim();
+        rule.PointsJ15 = r.PointsJ15;
+        rule.PointsJ4 = r.PointsJ4;
+        await db.SaveChangesAsync(ct);
+        return Ok(new RuleDto(rule.Key, rule.Category, rule.Label, rule.Points, rule.PointsJ15, rule.PointsJ4, rule.HasJ15J4));
+    }
+
+    [HttpQuery("penalties")]
+    public async Task<IActionResult> Penalties([FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] PenaltyQuery? query, CancellationToken ct)
+    {
+        query ??= new(null, null, null, null, null, null);
+        var s = query.Season ?? Season.For(clock.GetUtcNow().UtcDateTime);
+        // A penalty is a negative entry (manual or from a rule); compensating rows (…revoke…) are not penalties.
+        var q = db.PointEntries.AsNoTracking().Where(p => p.Points < 0 && p.Season == s && !p.SourceKey.Contains("revoke"));
+        if (query.PersonId is { } f) q = q.Where(p => p.PersonId == f);
+        if (Dates.ToUtc(query.From) is { } from) q = q.Where(p => p.CreatedAtUtc >= from);
+        if (Paging.Term(query.Search) is { } term) q = q.Where(p => p.Reason.ToLower().Contains(term));
+
+        var total = await q.CountAsync(ct);
+        var rows = await q.OrderByDescending(p => p.CreatedAtUtc)
+            .Skip(Paging.Skip(query.Skip)).Take(Paging.Take(query.Take, 50, 200)).ToListAsync(ct);
+        var personNames = await identity.GetPersonNamesAsync(rows.Select(p => p.PersonId), ct);
+        var revoked = await RevokedIdsAsync(rows, ct);
+        var items = rows.Select(p => new PenaltyDto(p.Id, p.PersonId, personNames.GetValueOrDefault(p.PersonId, "?"),
+            p.Points, p.Reason, p.MatchId, p.Season, p.CreatedAtUtc, p.IsManual, revoked.Contains(p.Id))).ToList();
+        return Ok(new PagedResult<PenaltyDto>(total, items));
+    }
+
+    // Free-form penalty (or bonus): either reference a rule, or give points + reason.
+    [HttpPost("penalties")]
+    public Task<IActionResult> AddPenalty(PenaltyRequest r,
+        [FromServices] PointsService points, [FromServices] INotificationsApi notifications, CancellationToken ct) =>
+        ApplyPenaltyAsync(r, points, notifications, ct);
+
+    // One-tap penalty from a rule (no-show, late cancellation...).
+    [HttpPost("penalties/quick")]
+    public Task<IActionResult> AddQuickPenalty(QuickPenaltyRequest r,
+        [FromServices] PointsService points, [FromServices] INotificationsApi notifications, CancellationToken ct) =>
+        ApplyPenaltyAsync(new PenaltyRequest(r.PersonId, r.RuleKey, null, null, r.MatchId), points, notifications, ct);
+
+    // Revokes a manual adjustment by appending the opposite row (the original stays, flagged as revoked).
+    [HttpPost("points/{id:guid}/revoke")]
+    [HttpPost("penalties/{id:guid}/revoke")]
+    public async Task<IActionResult> Revoke(Guid id, [FromServices] PointsService points, CancellationToken ct)
+    {
+        var entry = await db.PointEntries.AsNoTracking().SingleOrDefaultAsync(p => p.Id == id, ct);
+        if (entry is null) return Error.NotFound("points.not_found", "Entry not found.").ToProblem();
+        if (!entry.IsManual) return Error.Conflict("points.not_manual", "Only manual adjustments can be revoked.").ToProblem();
+        if (entry.Season != Season.Current(clock)) return ClosedSeason().ToProblem();
+        await points.RevokeAsync(entry.SourceKey, $"{PointEntry.RevokePrefix}{id}", ct);
+        return NoContent();
+    }
+
+    // Edits a manual adjustment (category, points, reason). Not allowed once revoked.
+    [HttpPut("points/{id:guid}")]
+    public async Task<IActionResult> UpdateManual(Guid id, UpdatePointsRequest r, CancellationToken ct)
+    {
+        var entry = await db.PointEntries.SingleOrDefaultAsync(p => p.Id == id, ct);
+        if (entry is null) return Error.NotFound("points.not_found", "Entry not found.").ToProblem();
+        if (!entry.IsManual) return Error.Conflict("points.not_manual", "Only manual adjustments can be edited.").ToProblem();
+        if (entry.Season != Season.Current(clock)) return ClosedSeason().ToProblem();
+        if (await db.PointEntries.AnyAsync(p => p.SourceKey == $"{PointEntry.RevokePrefix}{id}", ct))
+            return Error.Conflict("points.revoked", "A revoked adjustment cannot be edited.").ToProblem();
+        if (await ValidateAdjustmentAsync(r.Category, r.Points, r.Reason, ct) is { } invalid) return invalid.ToProblem();
+
+        entry.UpdateManual(r.Category, r.Points, r.Reason.Trim(), r.MatchId);
+        await db.SaveChangesAsync(ct);
+        var name = (await identity.GetPersonNamesAsync([entry.PersonId], ct)).GetValueOrDefault(entry.PersonId, "?");
+        return Ok(new EntryDto(entry.Id, entry.Category, entry.Points, entry.Reason, entry.MatchId, entry.CreatedAtUtc, entry.PersonId, name, true, false));
+    }
+
+    // Points history - all entries for a person
+    [HttpQuery("points-history")]
+    public async Task<IActionResult> PointsHistory([FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] PointsHistoryQuery? query, CancellationToken ct)
+    {
+        query ??= new(null, null, null, null, null, null);
+        var s = query.Season ?? Season.For(clock.GetUtcNow().UtcDateTime);
+        var q = db.PointEntries.AsNoTracking().Where(p => p.Season == s);
+        if (!string.IsNullOrWhiteSpace(query.Category)) q = q.Where(p => p.Category == query.Category);
+        if (query.PersonId is { } f) q = q.Where(p => p.PersonId == f);
+        if (Paging.Term(query.Search) is { } term) q = q.Where(p => p.Reason.ToLower().Contains(term));
+
+        var total = await q.CountAsync(ct);
+        var rows = await q.OrderByDescending(p => p.CreatedAtUtc)
+            .Skip(Paging.Skip(query.Skip)).Take(Paging.Take(query.Take, 100, 500)).ToListAsync(ct);
+
+        var personNames = await identity.GetPersonNamesAsync(rows.Select(p => p.PersonId), ct);
+
+        var revoked = await RevokedIdsAsync(rows, ct);
+        var items = rows.Select(p => new EntryDto(p.Id, p.Category, p.Points, p.Reason, p.MatchId, p.CreatedAtUtc, p.PersonId,
+            personNames.GetValueOrDefault(p.PersonId, "?"), p.IsManual, revoked.Contains(p.Id)));
+        return Ok(new PagedResult<EntryDto>(total, items.ToList()));
+    }
+
+    private async Task<IActionResult> ApplyPenaltyAsync(PenaltyRequest r, PointsService points,
+        INotificationsApi notifications, CancellationToken ct)
+    {
+        if ((await identity.GetPersonNamesAsync([r.PersonId], ct)).Count == 0)
+            return Error.NotFound("person.not_found", "Person not found.").ToProblem();
+
+        int pts;
+        string reason;
+        string category;
+        if (!string.IsNullOrWhiteSpace(r.RuleKey))
+        {
+            var rule = await db.Rules.AsNoTracking().SingleOrDefaultAsync(x => x.Key == r.RuleKey, ct);
+            if (rule is null || rule.Points >= 0)
+                return Error.Validation("rule.invalid", "Unknown penalty rule.").ToProblem();
+            category = rule.Category;
+            pts = rule.Points;
+            reason = string.IsNullOrWhiteSpace(r.Reason) ? rule.Label : r.Reason.Trim();
+        }
+        else
+        {
+            category = r.Category ?? "";
+            pts = r.Points ?? 0;
+            reason = r.Reason ?? "";
+            if (await ValidateAdjustmentAsync(category, pts, reason, ct) is { } invalid) return invalid.ToProblem();
+            reason = reason.Trim();
+        }
+
+        var entry = await points.AddManualAsync(r.PersonId, category, pts, reason, r.MatchId, user.UserId, ct);
+
+        await notifications.SendToPersonAsync(r.PersonId, pts < 0 ? "Pénalité" : "Bonus",
+            $"{(pts > 0 ? "+" : "")}{pts} pts : {reason}",
+            new Dictionary<string, string> { ["type"] = "ranking_entry" }, ct);
+
+        return Created($"/api/v1/admin/penalties?personId={r.PersonId}",
+            new EntryDto(entry.Id, entry.Category, entry.Points, entry.Reason, entry.MatchId, entry.CreatedAtUtc, entry.PersonId, "", true, false));
+    }
+
+    /// <summary>Ids (among these rows) of the manual entries that have been revoked.</summary>
+    private async Task<HashSet<Guid>> RevokedIdsAsync(IEnumerable<PointEntry> rows, CancellationToken ct)
+    {
+        var manual = rows.Where(p => p.IsManual).Select(p => p.Id).ToList();
+        if (manual.Count == 0) return [];
+        var keys = manual.Select(id => $"{PointEntry.RevokePrefix}{id}").ToList();
+        var found = await db.PointEntries.AsNoTracking().Where(p => keys.Contains(p.SourceKey)).Select(p => p.SourceKey).ToListAsync(ct);
+        return manual.Where(id => found.Contains($"{PointEntry.RevokePrefix}{id}")).ToHashSet();
+    }
+
+    /// <summary>Category must be a known rule category; points non-zero (negative = penalty); reason required.</summary>
+    private async Task<Error?> ValidateAdjustmentAsync(string? category, int points, string? reason, CancellationToken ct)
+    {
+        if (points == 0 || Math.Abs(points) > 1000) return Error.Validation("points.invalid", "Points must be non-zero, between -1000 and 1000.");
+        if (Guard.NotBlank(reason, "reason", 250) is { } err) return err;
+        if (string.IsNullOrWhiteSpace(category) || !await db.Rules.AnyAsync(r => r.Category == category, ct))
+            return Error.Validation("category.invalid", "Unknown points category.");
+        return null;
+    }
+
+    private static Error ClosedSeason() =>
+        Error.Conflict("season.closed", "This entry belongs to a past season and can no longer be changed.");
+}

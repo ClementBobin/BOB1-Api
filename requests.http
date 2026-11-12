@@ -1,0 +1,140 @@
+@host = http://localhost:5000
+@matchId = 33333333-3333-3333-3333-333333333333
+
+### ---------- Auth ----------
+# Seeded accounts (Development): parent@bob1.local / Parent123!   staff@bob1.local / Staff123!   admin@bob1.local / Admin123!
+# @name loginParent
+POST {{host}}/api/v1/auth/login
+Content-Type: application/json
+
+{ "email": "parent@bob1.local", "password": "Parent123!" }
+
+###
+@parentToken = {{loginParent.response.body.accessToken}}
+
+# @name loginAdmin
+POST {{host}}/api/v1/auth/login
+Content-Type: application/json
+
+{ "email": "admin@bob1.local", "password": "Admin123!" }
+
+###
+@adminToken = {{loginAdmin.response.body.accessToken}}
+
+# @name loginStaff
+POST {{host}}/api/v1/auth/login
+Content-Type: application/json
+
+{ "email": "staff@bob1.local", "password": "Staff123!" }
+
+###
+@staffToken = {{loginStaff.response.body.accessToken}}
+
+### ---------- Parent: calendar & match ----------
+QUERY {{host}}/api/v1/matches
+Authorization: Bearer {{parentToken}}
+
+###
+GET {{host}}/api/v1/matches/{{matchId}}/participation
+Authorization: Bearer {{parentToken}}
+
+### ---------- Parent: confirm presence, join buvette ----------
+GET {{host}}/api/v1/family
+Authorization: Bearer {{parentToken}}
+
+###
+POST {{host}}/api/v1/matches/{{matchId}}/presence/confirm
+Authorization: Bearer {{parentToken}}
+
+###
+# @name getParticipation
+GET {{host}}/api/v1/matches/{{matchId}}/participation
+Authorization: Bearer {{parentToken}}
+
+###
+# A parent only sees the Volunteer slot ("Buvette"), so it is the first one
+@slotId = {{getParticipation.response.body.$.slots[0].id}}
+
+POST {{host}}/api/v1/slots/{{slotId}}/join
+Authorization: Bearer {{parentToken}}
+
+### ---------- Parent: carpool ----------
+POST {{host}}/api/v1/matches/{{matchId}}/rides
+Authorization: Bearer {{parentToken}}
+Content-Type: application/json
+
+{ "seats": 3, "departureUtc": "2026-11-10T16:30:00Z", "notes": "Départ à l'heure !" }
+
+###
+QUERY {{host}}/api/v1/matches/{{matchId}}/rides
+Authorization: Bearer {{parentToken}}
+
+### ---------- Parent: commitments, ranking, notifications ----------
+QUERY {{host}}/api/v1/me/commitments
+Authorization: Bearer {{parentToken}}
+
+###
+QUERY {{host}}/api/v1/rankings
+Authorization: Bearer {{parentToken}}
+
+###
+QUERY {{host}}/api/v1/rankings/me/entries
+Authorization: Bearer {{parentToken}}
+
+###
+POST {{host}}/api/v1/me/push-tokens
+Authorization: Bearer {{parentToken}}
+Content-Type: application/json
+
+{ "token": "fcm-device-token" }
+
+###
+QUERY {{host}}/api/v1/notifications
+Authorization: Bearer {{parentToken}}
+
+### ---------- Staff ----------
+QUERY {{host}}/api/v1/staff/open-slots
+Authorization: Bearer {{staffToken}}
+
+###
+QUERY {{host}}/api/v1/staff/assignments
+Authorization: Bearer {{staffToken}}
+
+### ---------- Admin ----------
+QUERY {{host}}/api/v1/admin/slots/urgent
+Authorization: Bearer {{adminToken}}
+
+###
+GET {{host}}/api/v1/admin/matches/{{matchId}}/participation
+Authorization: Bearer {{adminToken}}
+
+###
+QUERY {{host}}/api/v1/admin/ranking-rules
+Authorization: Bearer {{adminToken}}
+
+###
+QUERY {{host}}/api/v1/ranking-rules
+Authorization: Bearer {{adminToken}}
+
+###
+# Quick penalty from a rule (negative points in the rule's category): needs a person id (GET /api/v1/admin/people -> id)
+POST {{host}}/api/v1/admin/penalties/quick
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "personId": "PASTE_PERSON_ID", "ruleKey": "penalty.no_show", "matchId": "33333333-3333-3333-3333-333333333333" }
+
+###
+# Manual adjustment (negative = penalty). Manual rows can then be edited (PUT /admin/points/{id}) and revoked (POST /admin/points/{id}/revoke)
+POST {{host}}/api/v1/admin/penalties
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "personId": "PASTE_PERSON_ID", "category": "presence", "points": -5, "reason": "Retard" }
+
+###
+POST {{host}}/api/v1/admin/notifications
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "title": "Info club", "body": "Assemblée générale vendredi 19h.", "divisionId": null }

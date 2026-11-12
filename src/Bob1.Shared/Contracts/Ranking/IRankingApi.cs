@@ -1,0 +1,10 @@
+namespace Bob1.Shared.Contracts.Ranking;
+
+/// <summary>What other modules may ask Ranking.</summary>
+public interface IRankingApi
+{
+    Task<RankingSeasonTotals> GetSeasonTotalsAsync(string season, CancellationToken ct);
+}
+
+/// <summary>Awarded = sum of positive entries, Removed = sum of negative ones (as a negative number).</summary>
+public sealed record RankingSeasonTotals(int Entries, int Awarded, int Removed, int ManualEntries);
