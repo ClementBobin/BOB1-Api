@@ -44,8 +44,10 @@ builder.Services.AddControllers()
 builder.Services.ConfigureHttpJsonOptions(o => JsonDefaults.Configure(o.SerializerOptions));
 
 // The admin back-office is a separate origin (Next.js dev server on :3000).
-var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+var allowedOrigins = builder.Configuration["Cors:AllowedOrigins"]?
+                         .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) 
                      ?? ["http://localhost:3000"];
+
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
     p.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod()));
 
