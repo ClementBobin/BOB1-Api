@@ -1,0 +1,8 @@
+# Optional: enable push notifications (FCM). Put your service-account key in ./secrets/firebase.json, then:
+#   docker compose -f docker-compose.yml -f docker-compose.firebase.yml up -d
+services:
+  bob1-api:
+    environment:
+      Firebase__CredentialsPath: /secrets/firebase.json
+    volumes:
+      - ./secrets/firebase.json:/secrets/firebase.json:ro

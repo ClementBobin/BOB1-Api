@@ -1,4 +1,3 @@
-using Microsoft.Data.Sqlite;
 
 namespace Bob1.Modules.Ranking.Application;
 
@@ -67,7 +66,7 @@ internal sealed class PointsService(RankingDbContext db, TimeProvider clock)
         {
             await db.SaveChangesAsync(ct);
         }
-        catch (DbUpdateException ex) when (ex.InnerException is SqliteException { SqliteExtendedErrorCode: 2067 or 1555 }) // UNIQUE / PRIMARY KEY
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation()) // UNIQUE / PRIMARY KEY
         {
             db.ChangeTracker.Clear(); // a concurrent handler already recorded it
         }

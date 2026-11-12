@@ -7,9 +7,9 @@ public sealed class MatchesModule : IModule
 {
     public void Register(IServiceCollection services, IConfiguration configuration)
     {
-        services.AddDbContext<MatchesDbContext>(o => o.UseSqlite(
+        services.AddDbContext<MatchesDbContext>(o => o.UseNpgsql(
             configuration.GetConnectionString("Default"),
-            sqlite => sqlite.MigrationsHistoryTable("__EFMigrationsHistory_Matches")));
+            npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory_Matches")));
         services.AddScoped<IMatchesApi, MatchesApi>();
     }
 

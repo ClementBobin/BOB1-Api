@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Bob1.Modules.Identity.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class Seasons : Migration
+    public partial class Initial : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -15,9 +15,9 @@ namespace Bob1.Modules.Identity.Infrastructure.Migrations
                 name: "families",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Name = table.Column<string>(type: "TEXT", maxLength: 150, nullable: false),
-                    CreatedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "character varying(150)", maxLength: 150, nullable: false),
+                    CreatedAtUtc = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -28,12 +28,12 @@ namespace Bob1.Modules.Identity.Infrastructure.Migrations
                 name: "family_invitations",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    FamilyId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Code = table.Column<string>(type: "TEXT", maxLength: 16, nullable: false),
-                    CreatedByUserId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    ExpiresAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    UsedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: true)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    FamilyId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Code = table.Column<string>(type: "character varying(16)", maxLength: 16, nullable: false),
+                    CreatedByUserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ExpiresAtUtc = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    UsedAtUtc = table.Column<DateTime>(type: "timestamp without time zone", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -44,10 +44,10 @@ namespace Bob1.Modules.Identity.Infrastructure.Migrations
                 name: "memberships",
                 columns: table => new
                 {
-                    UserId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Season = table.Column<string>(type: "TEXT", maxLength: 9, nullable: false),
-                    DivisionId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    CreatedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Season = table.Column<string>(type: "character varying(9)", maxLength: 9, nullable: false),
+                    DivisionId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CreatedAtUtc = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -58,12 +58,12 @@ namespace Bob1.Modules.Identity.Infrastructure.Migrations
                 name: "refresh_tokens",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    UserId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    TokenHash = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
-                    ExpiresAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    RevokedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    CreatedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    TokenHash = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
+                    ExpiresAtUtc = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    RevokedAtUtc = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
+                    CreatedAtUtc = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -74,9 +74,9 @@ namespace Bob1.Modules.Identity.Infrastructure.Migrations
                 name: "team_memberships",
                 columns: table => new
                 {
-                    UserId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Season = table.Column<string>(type: "TEXT", maxLength: 9, nullable: false),
-                    TeamId = table.Column<Guid>(type: "TEXT", nullable: false)
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Season = table.Column<string>(type: "character varying(9)", maxLength: 9, nullable: false),
+                    TeamId = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -87,16 +87,16 @@ namespace Bob1.Modules.Identity.Infrastructure.Migrations
                 name: "users",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Email = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false),
-                    PasswordHash = table.Column<string>(type: "TEXT", nullable: false),
-                    FirstName = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
-                    LastName = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
-                    Roles = table.Column<int>(type: "INTEGER", nullable: false),
-                    FamilyId = table.Column<Guid>(type: "TEXT", nullable: true),
-                    IsActive = table.Column<bool>(type: "INTEGER", nullable: false),
-                    SuspendedFromParticipation = table.Column<bool>(type: "INTEGER", nullable: false),
-                    CreatedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Email = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    PasswordHash = table.Column<string>(type: "text", nullable: false),
+                    FirstName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    LastName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    Roles = table.Column<int>(type: "integer", nullable: false),
+                    FamilyId = table.Column<Guid>(type: "uuid", nullable: true),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false),
+                    SuspendedFromParticipation = table.Column<bool>(type: "boolean", nullable: false),
+                    CreatedAtUtc = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
                 },
                 constraints: table =>
                 {

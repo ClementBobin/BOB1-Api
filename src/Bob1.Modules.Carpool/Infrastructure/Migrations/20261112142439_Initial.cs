@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Bob1.Modules.Carpool.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class Seasons : Migration
+    public partial class Initial : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -15,14 +15,14 @@ namespace Bob1.Modules.Carpool.Infrastructure.Migrations
                 name: "rides",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    MatchId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    DriverUserId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Seats = table.Column<int>(type: "INTEGER", nullable: false),
-                    DepartureUtc = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    Notes = table.Column<string>(type: "TEXT", maxLength: 500, nullable: true),
-                    CreatedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    Version = table.Column<int>(type: "INTEGER", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    MatchId = table.Column<Guid>(type: "uuid", nullable: false),
+                    DriverUserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Seats = table.Column<int>(type: "integer", nullable: false),
+                    DepartureUtc = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    Notes = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    CreatedAtUtc = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    Version = table.Column<int>(type: "integer", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -33,9 +33,9 @@ namespace Bob1.Modules.Carpool.Infrastructure.Migrations
                 name: "ride_bookings",
                 columns: table => new
                 {
-                    RideId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    UserId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    CreatedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    RideId = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CreatedAtUtc = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
                 },
                 constraints: table =>
                 {

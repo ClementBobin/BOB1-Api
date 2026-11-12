@@ -36,9 +36,9 @@ internal sealed class ClubApi(ClubDbContext db) : IClubApi
     public async Task<ClubSearchHits> SearchAsync(string search, CancellationToken ct)
     {
         if (Paging.Pattern(search) is not { } like) return new([], [], []);
-        var divisions = await db.Divisions.AsNoTracking().Where(d => EF.Functions.Like(d.Name, like, "\\")).Select(d => d.Id).ToListAsync(ct);
-        var teams = await db.Teams.AsNoTracking().Where(t => EF.Functions.Like(t.Name, like, "\\")).Select(t => t.Id).ToListAsync(ct);
-        var venues = await db.Venues.AsNoTracking().Where(v => EF.Functions.Like(v.Name, like, "\\")).Select(v => v.Id).ToListAsync(ct);
+        var divisions = await db.Divisions.AsNoTracking().Where(d => EF.Functions.ILike(d.Name, like, "\\")).Select(d => d.Id).ToListAsync(ct);
+        var teams = await db.Teams.AsNoTracking().Where(t => EF.Functions.ILike(t.Name, like, "\\")).Select(t => t.Id).ToListAsync(ct);
+        var venues = await db.Venues.AsNoTracking().Where(v => EF.Functions.ILike(v.Name, like, "\\")).Select(v => v.Id).ToListAsync(ct);
         return new(divisions, teams, venues);
     }
 }

@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Bob1.Modules.Participation.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class Seasons : Migration
+    public partial class Initial : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -15,11 +15,11 @@ namespace Bob1.Modules.Participation.Infrastructure.Migrations
                 name: "presence_confirmations",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    MatchId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    FamilyId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    ConfirmedByUserId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    ConfirmedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    MatchId = table.Column<Guid>(type: "uuid", nullable: false),
+                    FamilyId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ConfirmedByUserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ConfirmedAtUtc = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -30,9 +30,9 @@ namespace Bob1.Modules.Participation.Infrastructure.Migrations
                 name: "reminder_logs",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Key = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false),
-                    SentAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Key = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    SentAtUtc = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -43,15 +43,15 @@ namespace Bob1.Modules.Participation.Infrastructure.Migrations
                 name: "slots",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    MatchId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Kind = table.Column<string>(type: "TEXT", maxLength: 20, nullable: false),
-                    Role = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
-                    Capacity = table.Column<int>(type: "INTEGER", nullable: false),
-                    Filled = table.Column<int>(type: "INTEGER", nullable: false),
-                    StartsAtUtc = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    EndsAtUtc = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    Version = table.Column<int>(type: "INTEGER", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    MatchId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Kind = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    Role = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    Capacity = table.Column<int>(type: "integer", nullable: false),
+                    Filled = table.Column<int>(type: "integer", nullable: false),
+                    StartsAtUtc = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
+                    EndsAtUtc = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
+                    Version = table.Column<int>(type: "integer", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -62,11 +62,11 @@ namespace Bob1.Modules.Participation.Infrastructure.Migrations
                 name: "slot_signups",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    SlotId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    UserId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    FamilyId = table.Column<Guid>(type: "TEXT", nullable: true),
-                    CreatedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    SlotId = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    FamilyId = table.Column<Guid>(type: "uuid", nullable: true),
+                    CreatedAtUtc = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
                 },
                 constraints: table =>
                 {

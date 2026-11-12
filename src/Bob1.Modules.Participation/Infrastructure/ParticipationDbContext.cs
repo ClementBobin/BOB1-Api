@@ -27,7 +27,7 @@ internal sealed class ParticipationDbContext(DbContextOptions<ParticipationDbCon
             e.Ignore(x => x.DomainEvents);
             e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(20);
             e.Property(x => x.Role).HasMaxLength(50);
-            // Optimistic concurrency: a token bumped on every slot update (SQLite has no xmin/rowversion).
+            // Optimistic concurrency: a token bumped on every slot update (kept as an explicit int rather than Postgres xmin).
             e.Property<int>("Version").IsConcurrencyToken();
             e.HasMany(x => x.Signups).WithOne().HasForeignKey(x => x.SlotId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => x.MatchId);

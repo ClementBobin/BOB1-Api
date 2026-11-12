@@ -1,7 +1,6 @@
 using Bob1.Shared.Contracts.Identity;
 using Bob1.Shared.Contracts.Matches;
 using Bob1.Shared.Contracts.Participation;
-using Microsoft.Data.Sqlite;
 
 namespace Bob1.Modules.Participation.Application;
 
@@ -33,7 +32,7 @@ internal sealed class ConfirmPresenceHandler(
         {
             await db.SaveChangesAsync(ct);
         }
-        catch (DbUpdateException ex) when (ex.InnerException is SqliteException { SqliteExtendedErrorCode: 2067 or 1555 }) // UNIQUE / PRIMARY KEY
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation()) // UNIQUE / PRIMARY KEY
         {
             return Result.Success(); // two parents confirmed at the same instant: the unique index let exactly one through
         }

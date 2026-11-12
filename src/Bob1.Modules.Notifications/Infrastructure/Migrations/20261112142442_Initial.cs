@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Bob1.Modules.Notifications.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class Seasons : Migration
+    public partial class Initial : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -15,10 +15,10 @@ namespace Bob1.Modules.Notifications.Infrastructure.Migrations
                 name: "device_tokens",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    UserId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Token = table.Column<string>(type: "TEXT", maxLength: 512, nullable: false),
-                    LastSeenAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Token = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: false),
+                    LastSeenAtUtc = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -29,16 +29,16 @@ namespace Bob1.Modules.Notifications.Infrastructure.Migrations
                 name: "notifications",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    UserId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Title = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false),
-                    Body = table.Column<string>(type: "TEXT", maxLength: 1000, nullable: false),
-                    DataJson = table.Column<string>(type: "TEXT", nullable: true),
-                    CreatedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    ReadAtUtc = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    ExpiresAtUtc = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    Recurring = table.Column<bool>(type: "INTEGER", nullable: false),
-                    Startup = table.Column<bool>(type: "INTEGER", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Title = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    Body = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: false),
+                    DataJson = table.Column<string>(type: "text", nullable: true),
+                    CreatedAtUtc = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    ReadAtUtc = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
+                    ExpiresAtUtc = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
+                    Recurring = table.Column<bool>(type: "boolean", nullable: false),
+                    Startup = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
                 {

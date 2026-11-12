@@ -7,13 +7,13 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__Default: Data Source=/data/bob1.db
-      Firebase__CredentialsPath: /secrets/firebase.json
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=bob1;Username=bob1;Password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      Database__MigrateOnStartup: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - 8080:8080
-    volumes:
-      - bob1-data:/data
-      - ./secrets/firebase.json:/secrets/firebase.json:ro
     read_only: true
     tmpfs:
       - /tmp
@@ -27,5 +27,21 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  postgres:
+    image: postgres:17-alpine
+    container_name: bob1-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bob1
+      POSTGRES_USER: bob1
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - bob1-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bob1 -d bob1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
 volumes:
-  bob1-data:
+  bob1-pgdata:

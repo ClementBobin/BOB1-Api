@@ -4,7 +4,6 @@ using Bob1.Shared.Contracts.Notifications;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
-using Microsoft.Data.Sqlite;
 
 namespace Bob1.Modules.Carpool.Api;
 
@@ -109,7 +108,7 @@ internal sealed class CarpoolController(CarpoolDbContext db, ICurrentUser user, 
 
             try { await db.SaveChangesAsync(ct); return NoContent(); }
             catch (DbUpdateConcurrencyException) { db.ChangeTracker.Clear(); }   // someone else booked first: re-check seats
-            catch (DbUpdateException ex) when (ex.InnerException is SqliteException { SqliteExtendedErrorCode: 2067 or 1555 }) // UNIQUE / PRIMARY KEY
+            catch (DbUpdateException ex) when (ex.IsUniqueViolation()) // UNIQUE / PRIMARY KEY
             {
                 return Error.Conflict("ride.already_booked", "You already booked this ride.").ToProblem();
             }

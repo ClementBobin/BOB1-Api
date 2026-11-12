@@ -8,9 +8,9 @@ public sealed class IdentityModule : IModule
 {
     public void Register(IServiceCollection services, IConfiguration configuration)
     {
-        services.AddDbContext<IdentityDbContext>(o => o.UseSqlite(
+        services.AddDbContext<IdentityDbContext>(o => o.UseNpgsql(
             configuration.GetConnectionString("Default"),
-            sqlite => sqlite.MigrationsHistoryTable("__EFMigrationsHistory_Identity")));
+            npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory_Identity")));
 
         services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
         services.AddSingleton<TokenService>();

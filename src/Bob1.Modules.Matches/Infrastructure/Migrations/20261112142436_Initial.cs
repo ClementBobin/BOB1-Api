@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Bob1.Modules.Matches.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class Seasons : Migration
+    public partial class Initial : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -15,14 +15,14 @@ namespace Bob1.Modules.Matches.Infrastructure.Migrations
                 name: "matches",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Season = table.Column<string>(type: "TEXT", maxLength: 9, nullable: false),
-                    DivisionId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    HomeTeamId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    AwayTeamId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    VenueId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    StartsAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    Status = table.Column<string>(type: "TEXT", maxLength: 20, nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Season = table.Column<string>(type: "character varying(9)", maxLength: 9, nullable: false),
+                    DivisionId = table.Column<Guid>(type: "uuid", nullable: false),
+                    HomeTeamId = table.Column<Guid>(type: "uuid", nullable: false),
+                    AwayTeamId = table.Column<Guid>(type: "uuid", nullable: false),
+                    VenueId = table.Column<Guid>(type: "uuid", nullable: false),
+                    StartsAtUtc = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    Status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false)
                 },
                 constraints: table =>
                 {

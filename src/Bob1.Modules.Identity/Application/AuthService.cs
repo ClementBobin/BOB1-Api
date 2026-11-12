@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Data.Sqlite;
 
 namespace Bob1.Modules.Identity.Application;
 
@@ -63,7 +62,7 @@ internal sealed class AuthService(IdentityDbContext db, IPasswordHasher<User> ha
         {
             return await IssueAsync(user, ct);
         }
-        catch (DbUpdateException ex) when (ex.InnerException is SqliteException { SqliteExtendedErrorCode: 2067 or 1555 }) // UNIQUE / PRIMARY KEY
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation()) // UNIQUE / PRIMARY KEY
         {
             return Error.Conflict("email.taken", "An account with this email already exists.");
         }

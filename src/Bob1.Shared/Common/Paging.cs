@@ -16,7 +16,7 @@ public static class Paging
 
     /// <summary>
     /// "%term%" LIKE pattern with wildcards escaped (escape char is '\'): use with
-    /// <c>EF.Functions.Like(column, pattern, "\\")</c>; case-insensitive on SQLite and SQL Server.
+    /// <c>EF.Functions.ILike(column, pattern, "\\")</c> (PostgreSQL: LIKE is case-sensitive, ILIKE is not).
     /// </summary>
     public static string? Pattern(string? search) =>
         string.IsNullOrWhiteSpace(search)

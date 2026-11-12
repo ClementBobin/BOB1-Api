@@ -6,9 +6,9 @@ public sealed class ParticipationModule : IModule
 {
     public void Register(IServiceCollection services, IConfiguration configuration)
     {
-        services.AddDbContext<ParticipationDbContext>(o => o.UseSqlite(
+        services.AddDbContext<ParticipationDbContext>(o => o.UseNpgsql(
             configuration.GetConnectionString("Default"),
-            sqlite => sqlite.MigrationsHistoryTable("__EFMigrationsHistory_Participation")));
+            npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory_Participation")));
 
         services.AddScoped<ConfirmPresenceHandler>();
         services.AddScoped<SlotMembershipHandler>();

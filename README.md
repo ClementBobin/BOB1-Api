@@ -1,10 +1,13 @@
 # Bob1 API: modular monolith (.NET 10)
 
-One ASP.NET Core API, one SQLite database file (one set of tables per module), strict module boundaries.
+One ASP.NET Core API, one PostgreSQL database (one set of tables per module), strict module boundaries.
 
 ## Run
 ```bash
 dotnet tool install --global dotnet-ef    # once
+
+# PostgreSQL for development (matches the connection string in appsettings.json)
+docker run -d --name bob1-pg -p 5432:5432 -e POSTGRES_DB=bob1 -e POSTGRES_USER=bob1 -e POSTGRES_PASSWORD=bob1 postgres:17-alpine
 
 # Create the first migration of every module (bash / PowerShell)
 ./scripts/migrations.sh Initial
@@ -12,14 +15,16 @@ dotnet tool install --global dotnet-ef    # once
 
 dotnet run --project src/Bob1.Api         # Development: applies migrations, seeds data, listens on :5000
 ```
-The database is a SQLite file named `bob1.db` (relative to the working directory). Override it with
-`ConnectionStrings:Default`, e.g. `Data Source=/var/lib/bob1/bob1.db`.
+The database is PostgreSQL. The connection string is `ConnectionStrings:Default`
+(default: `Host=localhost;Port=5432;Database=bob1;Username=bob1;Password=bob1`); in production set it through
+`ConnectionStrings__Default`. `docker-compose.yml` starts the API together with a Postgres 17 container
+(set `POSTGRES_PASSWORD` in `.env`).
 
 Dev accounts: `parent@bob1.local / Parent123!`, `staff@bob1.local / Staff123!`, `admin@bob1.local / Admin123!`.
 Try the API with `requests.http` (VS Code REST Client / Rider / Visual Studio). OpenAPI: `/openapi/v1.json`.
 
 Changed an entity? `./scripts/migrations.sh <Name>`. Early on, the simplest reset is:
-delete `bob1.db`, delete every module's `Infrastructure/Migrations/` folder, recreate `Initial`.
+drop and recreate the `bob1` database, delete every module's `Infrastructure/Migrations/` folder, recreate `Initial`.
 
 ## Seasons
 
@@ -27,7 +32,7 @@ A season runs 1 Sept → 31 Aug (label `2026-2027`); the current one is derived 
 - `Membership(UserId, Season, DivisionId)` replaces `User.DivisionId`; a new season starts as a copy of the previous one, edits only touch the current season.
 - Matches carry a stored `Season` and must fall in the current season; matches and manual points of past seasons are read-only.
 - `QUERY /seasons`, `QUERY /admin/seasons/overview`, `season` filter on matches / people / rankings / points-history, `QUERY /admin/people/{id}/memberships` (Parcours).
-- Schema of Club, Identity and Matches changed: their `Initial` migrations were deleted. Regenerate with `./scripts/migrations.sh Initial` (or the ps1) and wipe the dev database.
+- Schema of Club, Identity and Matches changed.
 
 ## Solution layout
 ```
@@ -49,7 +54,7 @@ src/
 ```
 Modules never reference each other. They talk through `Bob1.Shared/Contracts/<Module>` (interface + DTOs, resolved by DI
 at runtime) or domain events. Each module owns one DbContext, its own `__EFMigrationsHistory_<Module>` table, and never
-queries another module's tables (SQLite has no schemas, so isolation is by DbContext and table ownership).
+queries another module's tables (isolation is by DbContext and table ownership, all in the same database).
 
 ## Modules and their dependencies
 ```
@@ -98,7 +103,8 @@ Modules never touch each other's tables: they call `Public` interfaces or react 
 Errors are ProblemDetails with a stable `code` (e.g. `slot.full`, `ride.full`, `match.already_started`, `auth.invalid_credentials`).
 
 ## Push notifications (Firebase)
-Set `Firebase:CredentialsPath` to your service-account JSON. Without it, pushes are only logged.
+Set `Firebase:CredentialsPath` to your service-account JSON. Without it, pushes are only logged. With Docker, put the key in `secrets/firebase.json` and start with
+`docker compose -f docker-compose.yml -f docker-compose.firebase.yml up -d` (the base compose file works without it).
 The mobile app registers its FCM token with `POST /me/push-tokens`.
 
 ## Not done yet (TODO)
@@ -107,3 +113,10 @@ The mobile app registers its FCM token with `POST /me/push-tokens`.
 - Notify on match rescheduling; carpool/slot reminders for admins
 - Tests: architecture tests (NetArchTest) for the module boundaries, Testcontainers integration tests
 - Rate limiting on `/auth/*`, CORS if you add a web admin
+
+## PostgreSQL notes
+
+- Provider: `Npgsql.EntityFrameworkCore.PostgreSQL`. The old SQLite migrations were removed: every module's `Initial` migration must be regenerated (`./scripts/migrations.sh Initial`) against this provider.
+- Unique-constraint races are detected with SQLSTATE `23505` (`DbErrors.IsUniqueViolation`).
+- Text search uses `ILIKE` (Postgres `LIKE` is case-sensitive).
+- `Npgsql.EnableLegacyTimestampBehavior` is on (see `Program.cs`): dates are `timestamp without time zone`, holding UTC, exactly as with SQLite.

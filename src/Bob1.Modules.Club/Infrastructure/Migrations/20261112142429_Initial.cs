@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Bob1.Modules.Club.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class Seasons : Migration
+    public partial class Initial : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -15,11 +15,11 @@ namespace Bob1.Modules.Club.Infrastructure.Migrations
                 name: "divisions",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Name = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
-                    Category = table.Column<string>(type: "TEXT", nullable: false),
-                    Gender = table.Column<string>(type: "TEXT", nullable: false),
-                    IsActive = table.Column<bool>(type: "INTEGER", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    Category = table.Column<string>(type: "text", nullable: false),
+                    Gender = table.Column<string>(type: "text", nullable: false),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -30,9 +30,9 @@ namespace Bob1.Modules.Club.Infrastructure.Migrations
                 name: "seasons",
                 columns: table => new
                 {
-                    Label = table.Column<string>(type: "TEXT", maxLength: 9, nullable: false),
-                    StartsOn = table.Column<DateOnly>(type: "TEXT", nullable: false),
-                    EndsOn = table.Column<DateOnly>(type: "TEXT", nullable: false)
+                    Label = table.Column<string>(type: "character varying(9)", maxLength: 9, nullable: false),
+                    StartsOn = table.Column<DateOnly>(type: "date", nullable: false),
+                    EndsOn = table.Column<DateOnly>(type: "date", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -43,14 +43,14 @@ namespace Bob1.Modules.Club.Infrastructure.Migrations
                 name: "teams",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Name = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
-                    DivisionId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    CoachName = table.Column<string>(type: "TEXT", nullable: true),
-                    CoachUserId = table.Column<Guid>(type: "TEXT", nullable: true),
-                    LogoUrl = table.Column<string>(type: "TEXT", nullable: true),
-                    IsActive = table.Column<bool>(type: "INTEGER", nullable: false),
-                    TrainingVenueId = table.Column<Guid>(type: "TEXT", nullable: true)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    DivisionId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CoachName = table.Column<string>(type: "text", nullable: true),
+                    CoachUserId = table.Column<Guid>(type: "uuid", nullable: true),
+                    LogoUrl = table.Column<string>(type: "text", nullable: true),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false),
+                    TrainingVenueId = table.Column<Guid>(type: "uuid", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -61,11 +61,11 @@ namespace Bob1.Modules.Club.Infrastructure.Migrations
                 name: "venues",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Name = table.Column<string>(type: "TEXT", maxLength: 150, nullable: false),
-                    Address = table.Column<string>(type: "TEXT", maxLength: 250, nullable: true),
-                    City = table.Column<string>(type: "TEXT", nullable: true),
-                    PostalCode = table.Column<string>(type: "TEXT", nullable: true)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "character varying(150)", maxLength: 150, nullable: false),
+                    Address = table.Column<string>(type: "character varying(250)", maxLength: 250, nullable: true),
+                    City = table.Column<string>(type: "text", nullable: true),
+                    PostalCode = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
                 {

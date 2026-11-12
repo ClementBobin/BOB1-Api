@@ -8,9 +8,9 @@ public sealed class NotificationsModule : IModule
 {
     public void Register(IServiceCollection services, IConfiguration configuration)
     {
-        services.AddDbContext<NotificationsDbContext>(o => o.UseSqlite(
+        services.AddDbContext<NotificationsDbContext>(o => o.UseNpgsql(
             configuration.GetConnectionString("Default"),
-            sqlite => sqlite.MigrationsHistoryTable("__EFMigrationsHistory_Notifications")));
+            npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory_Notifications")));
 
         // Firebase: set "Firebase:CredentialsPath" to your service-account JSON to enable real push.
         var credentialsPath = configuration["Firebase:CredentialsPath"];

@@ -6,9 +6,9 @@ public sealed class CarpoolModule : IModule
 {
     public void Register(IServiceCollection services, IConfiguration configuration)
     {
-        services.AddDbContext<CarpoolDbContext>(o => o.UseSqlite(
+        services.AddDbContext<CarpoolDbContext>(o => o.UseNpgsql(
             configuration.GetConnectionString("Default"),
-            sqlite => sqlite.MigrationsHistoryTable("__EFMigrationsHistory_Carpool")));
+            npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory_Carpool")));
         services.AddScoped<ICarpoolApi, CarpoolApi>();
     }
 
