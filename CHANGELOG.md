@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.1.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.0.0...v1.1.0) (2026-11-12)
+
+### ✨ Features
+
+* Add comprehensive notification trigger architecture and detailed paths ([1c7ef21](https://github.com/ClementBobin/BOB1-Api/commit/1c7ef21a2056a64ba3781580fa277af0784c4a4e))
+* Add initial migrations for Identity, Matches, Notifications, Participation, and Ranking modules ([d3cd855](https://github.com/ClementBobin/BOB1-Api/commit/d3cd8554b315d32e40edf10c5ce9a1d1f97cdd7e))
+* Add notification handling tasks and descriptions to TODO.md ([40d39d2](https://github.com/ClementBobin/BOB1-Api/commit/40d39d2c6271bcd7a10c35d4f05496b6b025ee4c))
+* Update .gitignore to include .env and secrets/firebase.json ([e995419](https://github.com/ClementBobin/BOB1-Api/commit/e99541938d6d004258442ea53db7bf5ec73d070c))
+
 ## 1.0.0 (2026-11-12)
 
 ### ✨ Features
