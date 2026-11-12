@@ -46,7 +46,7 @@ jobs:
           extra_plugins: |
             @semantic-release/changelog
             @semantic-release/git
-            conventional-changelog-conventionalcommits
+            conventional-changelog-conventionalcommits@8
         env:
           # Use a PAT (RELEASE_TOKEN) if main is protected, otherwise GITHUB_TOKEN works
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
