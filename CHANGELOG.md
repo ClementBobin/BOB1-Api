@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.1](https://github.com/ClementBobin/BOB1-Api/compare/v1.2.0...v1.2.1) (2026-11-12)
+
+### ♻️ Refactoring
+
+* comment out CORS configuration in Program.cs for future adjustments ([619525c](https://github.com/ClementBobin/BOB1-Api/commit/619525cdd60025a7a8b0def34d165845bb2fc05e))
+
 ## [1.2.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.1.0...v1.2.0) (2026-11-12)
 
 ### ✨ Features
