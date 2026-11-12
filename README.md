@@ -103,7 +103,8 @@ Modules never touch each other's tables: they call `Public` interfaces or react 
 Errors are ProblemDetails with a stable `code` (e.g. `slot.full`, `ride.full`, `match.already_started`, `auth.invalid_credentials`).
 
 ## Push notifications (Firebase)
-Set `Firebase:CredentialsPath` to your service-account JSON. Without it, pushes are only logged.
+Set `Firebase:CredentialsPath` to your service-account JSON. Without it, pushes are only logged. With Docker, put the key in `secrets/firebase.json` and start with
+`docker compose -f docker-compose.yml -f docker-compose.firebase.yml up -d` (the base compose file works without it).
 The mobile app registers its FCM token with `POST /me/push-tokens`.
 
 ## Not done yet (TODO)

@@ -9,14 +9,11 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=bob1;Username=bob1;Password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       Database__MigrateOnStartup: "true"
-      Firebase__CredentialsPath: /secrets/firebase.json
     depends_on:
       postgres:
         condition: service_healthy
     ports:
       - 8080:8080
-    volumes:
-      - ./secrets/firebase.json:/secrets/firebase.json:ro
     read_only: true
     tmpfs:
       - /tmp
