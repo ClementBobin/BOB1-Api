@@ -3,12 +3,16 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
+ARG VERSION=0.0.0
+
 COPY . .
 RUN dotnet restore src/Bob1.Api/Bob1.Api.csproj
 RUN dotnet publish src/Bob1.Api/Bob1.Api.csproj \
     -c Release \
     -o /app/publish \
-    --no-restore
+    --no-restore \
+    -p:Version=${VERSION} \
+    -p:InformationalVersion=${VERSION}
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
