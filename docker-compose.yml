@@ -1,0 +1,31 @@
+services:
+  bob1-api:
+    image: ghcr.io/clementbobin/bob1-api:latest
+    container_name: bob1-api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Default: Data Source=/data/bob1.db
+      Firebase__CredentialsPath: /secrets/firebase.json
+    ports:
+      - 8080:8080
+    volumes:
+      - bob1-data:/data
+      - ./secrets/firebase.json:/secrets/firebase.json:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  bob1-data:
