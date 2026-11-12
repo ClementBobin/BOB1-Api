@@ -15,7 +15,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Versioning only happens on pushes to main. A manual run (workflow_dispatch) skips it and
+  # builds an image tagged after the branch it was started from.
   release:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: write       # push CHANGELOG commit + tag, create GitHub Release
@@ -53,7 +56,8 @@ jobs:
 
   build:
     needs: release
-    if: needs.release.outputs.published == 'true'
+    # !cancelled(): still runs when `release` is skipped (manual run); on push it needs a new release.
+    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.release.outputs.published == 'true') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -63,7 +67,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ needs.release.outputs.tag }} # build from the release commit (includes CHANGELOG.md)
+          # release: build from the release commit (includes CHANGELOG.md); manual run: the selected branch
+          ref: ${{ needs.release.outputs.tag || github.sha }}
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
@@ -81,10 +86,11 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=semver,pattern={{version}},value=${{ needs.release.outputs.tag }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ needs.release.outputs.tag }}
+            type=semver,pattern={{version}},value=${{ needs.release.outputs.tag }},enable=${{ github.event_name == 'push' }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.release.outputs.tag }},enable=${{ github.event_name == 'push' }}
+            type=raw,value=latest,enable=${{ github.event_name == 'push' }}
+            type=ref,event=branch,enable=${{ github.event_name == 'workflow_dispatch' }}
             type=sha
-            type=raw,value=latest
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -95,7 +101,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            VERSION=${{ needs.release.outputs.version }}
+            VERSION=${{ needs.release.outputs.version || format('0.0.0-dev.{0}', github.run_number) }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           # platforms: linux/amd64,linux/arm64
