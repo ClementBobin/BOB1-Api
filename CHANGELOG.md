@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.4.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.3.0...v1.4.0) (2026-11-12)
+
+### ✨ Features
+
+* enhance CORS configuration with preflight max age ([f113b2b](https://github.com/ClementBobin/BOB1-Api/commit/f113b2b6b7ddf0536c6df2fdd3ffadb43c7601ae))
+
 ## [1.3.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.2.1...v1.3.0) (2026-11-12)
 
 ### ✨ Features
