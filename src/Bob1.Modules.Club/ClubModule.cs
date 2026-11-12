@@ -6,9 +6,9 @@ public sealed class ClubModule : IModule
 {
     public void Register(IServiceCollection services, IConfiguration configuration)
     {
-        services.AddDbContext<ClubDbContext>(o => o.UseSqlite(
+        services.AddDbContext<ClubDbContext>(o => o.UseNpgsql(
             configuration.GetConnectionString("Default"),
-            sqlite => sqlite.MigrationsHistoryTable("__EFMigrationsHistory_Club")));
+            npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory_Club")));
         services.AddScoped<IClubApi, ClubApi>();
         services.AddHostedService<SeasonService>();
     }

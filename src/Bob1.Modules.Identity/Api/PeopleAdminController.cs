@@ -3,7 +3,6 @@ using Bob1.Shared.Contracts.Club;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Data.Sqlite;
 
 namespace Bob1.Modules.Identity.Api;
 
@@ -96,7 +95,7 @@ internal sealed class PeopleAdminController(IdentityDbContext db, IClubApi club,
         {
             await db.SaveChangesAsync(ct);
         }
-        catch (DbUpdateException ex) when (ex.InnerException is SqliteException { SqliteExtendedErrorCode: 2067 or 1555 })
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
             return Error.Conflict("email.taken", "An account with this email already exists.").ToProblem();
         }

@@ -7,9 +7,9 @@ public sealed class RankingModule : IModule
 {
     public void Register(IServiceCollection services, IConfiguration configuration)
     {
-        services.AddDbContext<RankingDbContext>(o => o.UseSqlite(
+        services.AddDbContext<RankingDbContext>(o => o.UseNpgsql(
             configuration.GetConnectionString("Default"),
-            sqlite => sqlite.MigrationsHistoryTable("__EFMigrationsHistory_Ranking")));
+            npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory_Ranking")));
 
         services.AddScoped<PointsService>();
         services.AddScoped<Bob1.Shared.Contracts.Ranking.IRankingApi, Application.RankingApi>();

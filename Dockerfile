@@ -17,12 +17,8 @@ RUN dotnet publish src/Bob1.Api/Bob1.Api.csproj \
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
-# SQLite file lives in a volume so it survives container restarts
-RUN mkdir -p /data && chown -R app:app /data
-VOLUME /data
-
-ENV ASPNETCORE_URLS=http://+:8080 \
-    ConnectionStrings__Default="Data Source=/data/bob1.db"
+# The database is PostgreSQL: set ConnectionStrings__Default (see docker-compose.yml / README).
+ENV ASPNETCORE_URLS=http://+:8080
 
 COPY --from=build /app/publish .
 

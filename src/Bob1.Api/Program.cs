@@ -11,6 +11,10 @@ using Bob1.Shared;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 
+// Keep DateTime as "timestamp without time zone" (the app stores UTC everywhere and, like with SQLite before,
+// does not tag Kind), instead of Npgsql 6+'s strict timestamptz rules that reject Kind=Unspecified values.
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 // 1. The modules. Adding a feature area = adding a line here. (Order only matters for dev seeding.)
