@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.3.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.2.1...v1.3.0) (2026-11-12)
+
+### ✨ Features
+
+* update CORS configuration to allow all origins temporarily ([5cf163a](https://github.com/ClementBobin/BOB1-Api/commit/5cf163ac335af0fcdc5a30f2697e1dde26fecc2b))
+
 ## [1.2.1](https://github.com/ClementBobin/BOB1-Api/compare/v1.2.0...v1.2.1) (2026-11-12)
 
 ### ♻️ Refactoring
