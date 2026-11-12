@@ -48,8 +48,16 @@ builder.Services.ConfigureHttpJsonOptions(o => JsonDefaults.Configure(o.Serializ
 //                          .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) 
 //                      ?? ["http://localhost:3000"];
 
-// builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
-//     p.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod()));
+// allow all origins for now, because the front-end is not yet ready to be served from the same origin as the API (CORS preflight fails).
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
 
 // 3. Auth: JWT with sub / family_id / role claims (issued by the Identity module).
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>()
@@ -84,7 +92,7 @@ var app = builder.Build();
 
 app.UseExceptionHandler();   // unhandled exceptions -> ProblemDetails 500
 app.UseStatusCodePages();    // bare 401/403/404 -> ProblemDetails
-// app.UseCors();
+app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 
