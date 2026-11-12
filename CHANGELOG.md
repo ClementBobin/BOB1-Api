@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.1.0...v1.2.0) (2026-11-12)
+
+### ✨ Features
+
+* update CORS configuration to support dynamic allowed origins ([d3f44ae](https://github.com/ClementBobin/BOB1-Api/commit/d3f44aeea0f12bda570219f6e207fdd48ddff09f))
+
 ## [1.1.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.0.0...v1.1.0) (2026-11-12)
 
 ### ✨ Features
