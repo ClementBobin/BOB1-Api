@@ -15,5 +15,5 @@ public interface IMatchesApi
 public sealed record MatchSeasonStats(int Total, int Played, int Cancelled);
 
 public sealed record MatchInfo(
-    Guid Id, string Title, string DivisionName, string VenueName, DateTime StartsAtUtc, MatchStatus Status,
+    Guid Id, string Title, string VenueName, DateTime StartsAtUtc, MatchStatus Status,
     Guid HomeTeamId, Guid AwayTeamId);

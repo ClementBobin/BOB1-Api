@@ -13,7 +13,7 @@ internal sealed record ParticipationDto(bool PresenceConfirmed, IReadOnlyList<Sl
 internal sealed record CommitmentDto(string Type, Guid MatchId, string MatchTitle, DateTime StartsAtUtc, string Label);
 
 internal sealed record StaffAssignmentDto(Guid SlotId, Guid MatchId, string MatchTitle, DateTime StartsAtUtc, string Role);
-internal sealed record OpenStaffMatchDto(Guid MatchId, string Title, string DivisionName, DateTime StartsAtUtc, IReadOnlyList<SlotDto> Slots);
+internal sealed record OpenStaffMatchDto(Guid MatchId, string Title, DateTime StartsAtUtc, IReadOnlyList<SlotDto> Slots);
 
 internal sealed record RosterPersonDto(Guid UserId, string Name);
 internal sealed record RosterSlotDto(Guid SlotId, string Kind, string Role, int Capacity, IReadOnlyList<RosterPersonDto> People);
@@ -118,7 +118,7 @@ internal sealed class StaffController(ParticipationDbContext db, IMatchesApi mat
             .Where(s => s.Kind == SlotKind.Staff).ToLookup(s => s.MatchId);
 
         return Ok(upcoming.Where(m => slots.Contains(m.Id))
-            .Select(m => new OpenStaffMatchDto(m.Id, m.Title, m.DivisionName, m.StartsAtUtc,
+            .Select(m => new OpenStaffMatchDto(m.Id, m.Title, m.StartsAtUtc,
                 slots[m.Id].OrderBy(s => s.Role).Select(s => s.ToDto(user.UserId)).ToList())));
     }
 }

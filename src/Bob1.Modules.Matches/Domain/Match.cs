@@ -37,7 +37,7 @@ internal sealed class Match : Entity
         if (Status != MatchStatus.Scheduled)
             return Error.Conflict("match.not_cancellable", "Only scheduled matches can be cancelled.");
         Status = MatchStatus.Cancelled;
-        Raise(new MatchCancelled(Id, title, StartsAtUtc));
+        Raise(new MatchCancelled(Id, title, StartsAtUtc, HomeTeamId, AwayTeamId));
         return Result.Success();
     }
 

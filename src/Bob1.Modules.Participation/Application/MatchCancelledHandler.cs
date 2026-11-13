@@ -1,33 +1,31 @@
+using Bob1.Shared.Contracts.Identity;
 using Bob1.Shared.Contracts.Matches;
 using Bob1.Shared.Contracts.Notifications;
 
 namespace Bob1.Modules.Participation.Application;
 
-/// <summary>Matches publishes MatchCancelled; we tell everyone who had committed to it.</summary>
-internal sealed class MatchCancelledHandler(ParticipationDbContext db, INotificationsApi notifications)
+/// <summary>
+/// Matches publishes MatchCancelled; we tell everyone concerned: the players of the two teams and their families
+/// (team -> user, through Identity), the families who had confirmed presence, and the staff / volunteers signed up.
+/// </summary>
+internal sealed class MatchCancelledHandler(ParticipationDbContext db, INotificationsApi notifications, IIdentityApi identity)
     : IDomainEventHandler<MatchCancelled>
 {
     public async Task HandleAsync(MatchCancelled e, CancellationToken ct)
     {
-        var families = await db.PresenceConfirmations.Where(p => p.MatchId == e.MatchId).Select(p => p.FamilyId)
-            .ToListAsync(ct);
+        var recipients = new HashSet<Guid>(await identity.GetUserIdsByTeamsAsync([e.HomeTeamId, e.AwayTeamId], ct));
 
-        // Get all users from these families
-        var usersFromFamilies = new List<Guid>();
-        if (families.Count > 0)
-        {
-            // We need to get users from families - this would require Identity API
-            // For now, we'll skip family notifications since we removed SendToFamilyAsync
-        }
+        // A family that confirmed may have left the team since: it still needs to know.
+        var confirmedFamilies = await db.PresenceConfirmations.Where(p => p.MatchId == e.MatchId).Select(p => p.FamilyId)
+            .ToListAsync(ct);
+        foreach (var familyId in confirmedFamilies)
+            recipients.UnionWith(await identity.GetUserIdsOfFamilyAsync(familyId, ct));
 
         var staffAndVolunteers = await db.Slots.Where(s => s.MatchId == e.MatchId)
             .SelectMany(s => s.Signups).Select(x => x.UserId).Distinct().ToListAsync(ct);
+        recipients.UnionWith(staffAndVolunteers);
 
         var data = new Dictionary<string, string> { ["type"] = "match_cancelled", ["matchId"] = e.MatchId.ToString() };
-        const string title = "Match annulé";
-        var body = $"{e.Title} a été annulé.";
-
-        // Send to staff and volunteers (persons)
-        await notifications.SendToUsersAsync(staffAndVolunteers, title, body, data, ct);
+        await notifications.SendToUsersAsync(recipients.ToList(), "Match annulé", $"{e.Title} a été annulé.", data, ct);
     }
 }

@@ -70,7 +70,7 @@ Club ◄── Identity ◄── Notifications ◄──┐
 | Module | Owns |
 |---|---|
 | Club | divisions, teams, venues |
-| Identity | users (parents and children share the table; a child user has a `divisionId`), families, JWT + refresh tokens, family invitations |
+| Identity | users (parents and children share the table; a child user has a division and teams per season), families, JWT + refresh tokens, family invitations |
 | Matches | calendar, match admin (home/away teams), cancel, mark played |
 | Carpool | rides, bookings (seat contention handled with an optimistic concurrency token) |
 | Participation | presence confirmation, volunteer/staff slots, commitments, J-4 reminder job |
@@ -90,7 +90,7 @@ Modules never touch each other's tables: they call `Public` interfaces or react 
 **Club**: `QUERY /divisions | /teams | /venues` (body: `search`, `isActive`, `divisionId`, `skip`, `take`)
 **List endpoints use the HTTP `QUERY` method** (safe + idempotent, criteria in a JSON body). Paginated ones answer `{ "total": n, "items": [...] }`; send `skip`/`take`.
 
-**Matches**: `QUERY /matches` (body: `divisionId`, `memberId`, `from`, `to`, `status`, `search`, `skip`, `take`), `GET /matches/{id}`, `GET /matches/{id}/participation`
+**Matches**: `QUERY /matches` (body: `memberId` (matches of the teams that player is in), `from`, `to`, `status`, `search`, `season`, `skip`, `take`), `GET /matches/{id}`, `GET /matches/{id}/participation`
 **Participation** (Parent): `POST /matches/{id}/presence/confirm`; any role: `POST/DELETE /slots/{id}/join`
 **Carpool**: `QUERY/POST /matches/{id}/rides`, `PUT/DELETE /rides/{id}`, `POST/DELETE /rides/{id}/booking`
 **Staff**: `QUERY /staff/open-slots`, `QUERY /staff/assignments`
@@ -120,3 +120,9 @@ The mobile app registers its FCM token with `POST /me/push-tokens`.
 - Unique-constraint races are detected with SQLSTATE `23505` (`DbErrors.IsUniqueViolation`).
 - Text search uses `ILIKE` (Postgres `LIKE` is case-sensitive).
 - `Npgsql.EnableLegacyTimestampBehavior` is on (see `Program.cs`): dates are `timestamp without time zone`, holding UTC, exactly as with SQLite.
+
+## Who gets contacted (team -> user)
+
+A match has two teams and no division. To reach people we go **team -> players -> their families**: `IIdentityApi.GetUserIdsByTeamsAsync` (current season) returns the players of the teams plus the other members of their families.
+Used by the presence reminders (`GetFamilyIdsByTeamsAsync`), `MatchCancelled` (also tells families that had confirmed, and staff / volunteers signed up) and `POST /admin/notifications` with `teamId` (without it: `divisionId`, then everybody).
+`GET /family` lists the `teamIds` of each member, and `QUERY /matches` with `memberId` returns the matches of the teams that member plays in.

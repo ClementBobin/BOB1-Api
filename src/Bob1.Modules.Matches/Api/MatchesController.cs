@@ -30,17 +30,19 @@ internal sealed record MatchQuery(
 internal sealed class MatchesController(MatchesDbContext db, IClubApi club, IIdentityApi identity, ICurrentUser user, TimeProvider clock)
     : ApiControllerBase
 {
-    // Calendar. Filters: division, family member (uses the member's division), date range. Without a season it defaults to the next 120 days; with one it lists the whole season.
+    // Calendar. Filters: family member (the matches of the teams he/she plays in), date range. Without a season it defaults to the next 120 days; with one it lists the whole season.
     [HttpQuery]
     public async Task<IActionResult> List([FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] MatchQuery? query, CancellationToken ct)
     {
         query ??= new(null, null, null, null, null, null, null, null);
         var (memberId, from, to) = (query.MemberId, query.From, query.To);
+        List<Guid>? memberTeams = null;
         if (memberId is { } mid)
         {
             var member = await identity.GetMemberAsync(mid, ct);
             if (member is null || member.FamilyId != user.FamilyId)
                 return Error.NotFound("member.not_found", "Family member not found.").ToProblem();
+            memberTeams = (await identity.GetTeamIdsOfUserAsync(mid, ct)).ToList();
         }
 
         var q = db.Matches.AsNoTracking();
@@ -59,6 +61,9 @@ internal sealed class MatchesController(MatchesDbContext db, IClubApi club, IIde
             var toUtc = Dates.ToUtc(to) ?? fromUtc.AddDays(120);
             q = q.Where(m => m.StartsAtUtc >= fromUtc && m.StartsAtUtc <= toUtc);
         }
+
+        if (memberTeams is not null)
+            q = q.Where(m => memberTeams.Contains(m.HomeTeamId) || memberTeams.Contains(m.AwayTeamId));
 
         if (!string.IsNullOrWhiteSpace(query.Status) && Enum.TryParse<MatchStatus>(query.Status, true, out var status))
             q = q.Where(m => m.Status == status);
