@@ -35,12 +35,12 @@ internal sealed class MatchesAdminController(
     {
         if (await ValidateAsync(r, ct) is { } invalid) return invalid.ToProblem();
 
-        var m = Match.Create(r.DivisionId, r.HomeTeamId, r.AwayTeamId, r.VenueId, Dates.ToUtc(r.StartsAtUtc));
+        var m = Match.Create(r.HomeTeamId, r.AwayTeamId, r.VenueId, Dates.ToUtc(r.StartsAtUtc));
         db.Matches.Add(m);
         await db.SaveChangesAsync(ct);
 
         var labels = await MatchLabels.LoadAsync(club, [m], ct);
-        await events.DispatchAsync([new MatchCreated(m.Id, labels.Title(m), m.DivisionId, m.HomeTeamId, m.AwayTeamId, m.VenueId, m.StartsAtUtc)], ct);
+        await events.DispatchAsync([new MatchCreated(m.Id, labels.Title(m), m.HomeTeamId, m.AwayTeamId, m.VenueId, m.StartsAtUtc)], ct);
         await VenueConflictAsync(m, labels.Title(m), ct);
         return Created($"/api/v1/matches/{m.Id}", m.ToDto(labels));
     }
@@ -55,7 +55,7 @@ internal sealed class MatchesAdminController(
         if (await ValidateAsync(r, ct) is { } invalid) return invalid.ToProblem();
 
         var (oldStart, oldVenue, oldHome, oldAway) = (m.StartsAtUtc, m.VenueId, m.HomeTeamId, m.AwayTeamId);
-        var updated = m.Update(r.DivisionId, r.HomeTeamId, r.AwayTeamId, r.VenueId, Dates.ToUtc(r.StartsAtUtc));
+        var updated = m.Update(r.HomeTeamId, r.AwayTeamId, r.VenueId, Dates.ToUtc(r.StartsAtUtc));
         if (!updated.IsSuccess) return updated.Error.ToProblem();
         await db.SaveChangesAsync(ct);
 
@@ -114,8 +114,6 @@ internal sealed class MatchesAdminController(
             return Error.Validation("starts_at.out_of_season",
                 $"The match must fall inside the current season ({Season.StartsOn(Season.Current(clock)):dd/MM/yyyy} – {Season.EndsOn(Season.Current(clock)):dd/MM/yyyy}).");
 
-        if (await club.GetDivisionAsync(r.DivisionId, ct) is null)
-            return Error.NotFound("division.not_found", "Division not found.");
         var teams = await club.GetTeamNamesAsync([r.HomeTeamId, r.AwayTeamId], ct);
         if (!teams.ContainsKey(r.HomeTeamId)) return Error.NotFound("team.not_found", "Home team not found.");
         if (!teams.ContainsKey(r.AwayTeamId)) return Error.NotFound("team.not_found", "Away team not found.");

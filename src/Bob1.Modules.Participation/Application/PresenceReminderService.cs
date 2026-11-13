@@ -5,7 +5,7 @@ using Bob1.Shared.Contracts.Identity;
 namespace Bob1.Modules.Participation.Application;
 
 /// <summary>
-/// Every 15 minutes: families with a player in the match division, for a match starting within 4 days, that have not
+/// Every 15 minutes: families with a player in one of the two teams of a match starting within 4 days, that have not
 /// confirmed presence get ONE reminder (deduplicated through reminder_logs).
 /// </summary>
 internal sealed class PresenceReminderService(IServiceScopeFactory scopes, TimeProvider clock, ILogger<PresenceReminderService> log)
@@ -38,7 +38,7 @@ internal sealed class PresenceReminderService(IServiceScopeFactory scopes, TimeP
         {
             var confirmed = db.PresenceConfirmations.Where(p => p.MatchId == match.Id).Select(p => p.FamilyId);
             var confirmedIds = await confirmed.ToListAsync(ct);
-            var pending = (await identity.GetFamilyIdsByDivisionAsync(match.DivisionId, ct))
+            var pending = (await identity.GetFamilyIdsByTeamsAsync([match.HomeTeamId, match.AwayTeamId], ct))
                 .Where(f => !confirmedIds.Contains(f)).ToList();
 
             foreach (var familyId in pending)

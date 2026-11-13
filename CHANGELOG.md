@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.6.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.5.0...v1.6.0) (2026-11-13)
+
+### ✨ Features
+
+* Add migration files for MatchNoDivision across multiple modules ([97c57c4](https://github.com/ClementBobin/BOB1-Api/commit/97c57c4f1320bd4dccb2924b0e43119bd5b7beba))
+
+## [1.5.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.4.0...v1.5.0) (2026-11-13)
+
+### ✨ Features
+
+* Enhance team and family notification handling by updating match and identity APIs ([8ff8dcd](https://github.com/ClementBobin/BOB1-Api/commit/8ff8dcd833fd5a49126e742afba16acd6941db4c))
+* Refactor match handling by removing DivisionId from Match and related DTOs ([425067c](https://github.com/ClementBobin/BOB1-Api/commit/425067c37c264bdb1c5cce7255ac7364ea894624))
+* Remove DivisionId from Match-related classes and update mappings accordingly ([c0d9702](https://github.com/ClementBobin/BOB1-Api/commit/c0d97021764568aa7a24eefc7c1f24aec6b0ba60))
+
+### 📝 Documentation
+
+* add additional notification candidates and consolidated trigger table ([dce6a61](https://github.com/ClementBobin/BOB1-Api/commit/dce6a61963dc80190c5e66130cf88e8a7908db3d))
+* restrict email to account-security notifications, note team memberships ([fe1ceeb](https://github.com/ClementBobin/BOB1-Api/commit/fe1ceeb318d04950e5f6fb4656e76d6dd32d14a9))
+
 ## [1.4.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.3.0...v1.4.0) (2026-11-12)
 
 ### ✨ Features

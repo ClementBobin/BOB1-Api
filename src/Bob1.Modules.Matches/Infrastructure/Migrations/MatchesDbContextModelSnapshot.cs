@@ -30,9 +30,6 @@ namespace Bob1.Modules.Matches.Infrastructure.Migrations
                     b.Property<Guid>("AwayTeamId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("DivisionId")
-                        .HasColumnType("uuid");
-
                     b.Property<Guid>("HomeTeamId")
                         .HasColumnType("uuid");
 
@@ -55,8 +52,6 @@ namespace Bob1.Modules.Matches.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AwayTeamId");
-
-                    b.HasIndex("DivisionId");
 
                     b.HasIndex("HomeTeamId");
 

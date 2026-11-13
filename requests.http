@@ -137,4 +137,4 @@ POST {{host}}/api/v1/admin/notifications
 Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
-{ "title": "Info club", "body": "Assemblée générale vendredi 19h.", "divisionId": null }
+{ "title": "Info club", "body": "Assemblée générale vendredi 19h.", "divisionId": null, "teamId": null }

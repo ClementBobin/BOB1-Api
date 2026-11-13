@@ -7,22 +7,22 @@ using Microsoft.AspNetCore.Mvc;
 namespace Bob1.Modules.Matches.Api;
 
 internal sealed record MatchDto(
-    Guid Id, string Title, Guid DivisionId, string DivisionName, Guid HomeTeamId, Guid AwayTeamId,
+    Guid Id, string Title, Guid HomeTeamId, Guid AwayTeamId,
     Guid VenueId, DateTime StartsAtUtc, MatchStatus Status, string Season);
 
-internal sealed record MatchRequest(Guid DivisionId, Guid HomeTeamId, Guid AwayTeamId, Guid VenueId, DateTime StartsAtUtc);
+internal sealed record MatchRequest(Guid HomeTeamId, Guid AwayTeamId, Guid VenueId, DateTime StartsAtUtc);
 
 internal static class MatchMapping
 {
     public static MatchDto ToDto(this Match m, MatchLabels l) =>
-        new(m.Id, l.Title(m), m.DivisionId, l.Division(m), m.HomeTeamId, m.AwayTeamId, m.VenueId, m.StartsAtUtc, m.Status, m.Season);
+        new(m.Id, l.Title(m), m.HomeTeamId, m.AwayTeamId, m.VenueId, m.StartsAtUtc, m.Status, m.Season);
 
     public static async Task<MatchDto> ToDtoAsync(this Match m, IClubApi club, CancellationToken ct) =>
         m.ToDto(await MatchLabels.LoadAsync(club, [m], ct));
 }
 
 internal sealed record MatchQuery(
-    Guid? DivisionId, Guid? MemberId, DateTime? From, DateTime? To, string? Status, string? Search, string? Season, int? Skip, int? Take);
+    Guid? MemberId, DateTime? From, DateTime? To, string? Status, string? Search, string? Season, int? Skip, int? Take);
 
 [Route(ApiRoutes.V1 + "/matches")]
 [Authorize]
@@ -30,18 +30,19 @@ internal sealed record MatchQuery(
 internal sealed class MatchesController(MatchesDbContext db, IClubApi club, IIdentityApi identity, ICurrentUser user, TimeProvider clock)
     : ApiControllerBase
 {
-    // Calendar. Filters: division, family member (uses the member's division), date range. Without a season it defaults to the next 120 days; with one it lists the whole season.
+    // Calendar. Filters: family member (the matches of the teams he/she plays in), date range. Without a season it defaults to the next 120 days; with one it lists the whole season.
     [HttpQuery]
     public async Task<IActionResult> List([FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] MatchQuery? query, CancellationToken ct)
     {
-        query ??= new(null, null, null, null, null, null, null, null, null);
-        var (divisionId, memberId, from, to) = (query.DivisionId, query.MemberId, query.From, query.To);
+        query ??= new(null, null, null, null, null, null, null, null);
+        var (memberId, from, to) = (query.MemberId, query.From, query.To);
+        List<Guid>? memberTeams = null;
         if (memberId is { } mid)
         {
             var member = await identity.GetMemberAsync(mid, ct);
             if (member is null || member.FamilyId != user.FamilyId)
                 return Error.NotFound("member.not_found", "Family member not found.").ToProblem();
-            divisionId = member.DivisionId ?? divisionId;
+            memberTeams = (await identity.GetTeamIdsOfUserAsync(mid, ct)).ToList();
         }
 
         var q = db.Matches.AsNoTracking();
@@ -60,7 +61,9 @@ internal sealed class MatchesController(MatchesDbContext db, IClubApi club, IIde
             var toUtc = Dates.ToUtc(to) ?? fromUtc.AddDays(120);
             q = q.Where(m => m.StartsAtUtc >= fromUtc && m.StartsAtUtc <= toUtc);
         }
-        if (divisionId is { } d) q = q.Where(m => m.DivisionId == d);
+
+        if (memberTeams is not null)
+            q = q.Where(m => memberTeams.Contains(m.HomeTeamId) || memberTeams.Contains(m.AwayTeamId));
 
         if (!string.IsNullOrWhiteSpace(query.Status) && Enum.TryParse<MatchStatus>(query.Status, true, out var status))
             q = q.Where(m => m.Status == status);
@@ -68,8 +71,8 @@ internal sealed class MatchesController(MatchesDbContext db, IClubApi club, IIde
         {
             // Names live in the Club module: resolve the ids that match, then filter the matches on them.
             var hits = await club.SearchAsync(query.Search, ct);
-            var (divisions, teams, venues) = (hits.DivisionIds, hits.TeamIds, hits.VenueIds);
-            q = q.Where(m => divisions.Contains(m.DivisionId) || venues.Contains(m.VenueId)
+            var (teams, venues) = (hits.TeamIds, hits.VenueIds);
+            q = q.Where(m => venues.Contains(m.VenueId)
                              || teams.Contains(m.HomeTeamId) || teams.Contains(m.AwayTeamId));
         }
 

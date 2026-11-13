@@ -13,6 +13,15 @@ public interface IIdentityApi
     /// <summary>Families that have at least one active member in this division (current season).</summary>
     Task<IReadOnlyList<Guid>> GetFamilyIdsByDivisionAsync(Guid divisionId, CancellationToken ct);
     /// <summary>
+    /// Users to contact for these teams (current season): the players of the teams plus the other members of their
+    /// families (parents). This is how a match, or a broadcast aimed at a team, reaches people: team -> players -> family.
+    /// </summary>
+    Task<IReadOnlyList<Guid>> GetUserIdsByTeamsAsync(IReadOnlyCollection<Guid> teamIds, CancellationToken ct);
+    /// <summary>Families that have at least one active player in one of these teams (current season).</summary>
+    Task<IReadOnlyList<Guid>> GetFamilyIdsByTeamsAsync(IReadOnlyCollection<Guid> teamIds, CancellationToken ct);
+    /// <summary>Teams this user plays in (current season).</summary>
+    Task<IReadOnlyList<Guid>> GetTeamIdsOfUserAsync(Guid userId, CancellationToken ct);
+    /// <summary>
     /// True when this user, or a member of this family, is a player of one of these teams this season
     /// (a player can be in several teams; teams are stored per season).
     /// </summary>

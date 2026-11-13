@@ -22,7 +22,7 @@ public sealed class MatchesModule : IModule
         if ((!forceSeed && !services.GetRequiredService<IHostEnvironment>().IsDevelopment()) || (await db.Matches.AnyAsync() && !forceSeed))
             return;
 
-        db.Matches.Add(Match.Create(ClubSeed.DivisionU13M, ClubSeed.TeamU13MBob1, ClubSeed.TeamU13MCastelnau,
+        db.Matches.Add(Match.Create(ClubSeed.TeamU13MBob1, ClubSeed.TeamU13MCastelnau,
             ClubSeed.VenueCoubertin, DateTime.UtcNow.AddDays(7), MatchesSeed.DevSeedMatchId));
         await db.SaveChangesAsync();
     }
