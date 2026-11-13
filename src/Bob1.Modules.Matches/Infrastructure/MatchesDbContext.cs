@@ -18,7 +18,6 @@ internal sealed class MatchesDbContext(DbContextOptions<MatchesDbContext> option
             e.HasIndex(x => x.StartsAtUtc);
             e.Property(x => x.Season).HasMaxLength(9);
             e.HasIndex(x => new { x.Season, x.StartsAtUtc });
-            e.HasIndex(x => x.DivisionId);
             e.HasIndex(x => x.HomeTeamId);
             e.HasIndex(x => x.AwayTeamId);
         });

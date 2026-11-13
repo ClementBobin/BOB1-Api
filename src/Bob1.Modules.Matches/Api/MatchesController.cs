@@ -35,7 +35,7 @@ internal sealed class MatchesController(MatchesDbContext db, IClubApi club, IIde
     public async Task<IActionResult> List([FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] MatchQuery? query, CancellationToken ct)
     {
         query ??= new(null, null, null, null, null, null, null, null);
-        var (memberId, from, to) = (query.DivisionId, query.MemberId, query.From, query.To);
+        var (memberId, from, to) = (query.MemberId, query.From, query.To);
         if (memberId is { } mid)
         {
             var member = await identity.GetMemberAsync(mid, ct);
