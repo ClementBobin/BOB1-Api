@@ -20,7 +20,10 @@ internal sealed class NotificationsAdminController(NotificationsDbContext db) : 
         if (Guard.First(Guard.NotBlank(r.Title, "title", 200), Guard.NotBlank(r.Body, "body", 1000)) is { } err)
             return err.ToProblem();
 
-        var recipients = await identity.GetUserIdsByDivisionAsync(r.DivisionId, ct);
+        // Team first (players + their families), else division, else everybody.
+        var recipients = r.TeamId is { } teamId
+            ? await identity.GetUserIdsByTeamsAsync([teamId], ct)
+            : await identity.GetUserIdsByDivisionAsync(r.DivisionId, ct);
         await notifications.SendToUsersAsync(recipients, r.Title.Trim(), r.Body.Trim(),
             new Dictionary<string, string> { ["type"] = "broadcast" }, ct, r.ExpiresAtUtc, r.Recurring, r.Startup);
         return Ok(new { recipients = recipients.Count });

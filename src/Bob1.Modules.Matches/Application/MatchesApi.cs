@@ -6,7 +6,7 @@ namespace Bob1.Modules.Matches.Application;
 internal sealed class MatchesApi(MatchesDbContext db, IClubApi club) : IMatchesApi
 {
     private static MatchInfo Map(Match m, MatchLabels l) =>
-        new(m.Id, l.Title(m), m.DivisionId, l.Division(m), l.Venue(m), m.StartsAtUtc, m.Status, m.HomeTeamId, m.AwayTeamId);
+        new(m.Id, l.Title(m), l.Venue(m), m.StartsAtUtc, m.Status, m.HomeTeamId, m.AwayTeamId);
 
     private async Task<List<MatchInfo>> MapAsync(IReadOnlyCollection<Match> rows, CancellationToken ct)
     {
