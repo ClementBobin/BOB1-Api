@@ -16,6 +16,7 @@ public sealed class IdentityModule : IModule
         services.AddSingleton<TokenService>();
         services.AddScoped<AuthService>();
         services.AddScoped<MembershipService>();
+        services.AddScoped<PeopleNotices>();
         services.AddScoped<IIdentityApi, IdentityApi>();
         services.AddHostedService<MembershipRolloverService>();
     }

@@ -1,4 +1,5 @@
 using Bob1.Shared.Contracts.Club;
+using Bob1.Shared.Contracts.Matches;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,9 +9,27 @@ namespace Bob1.Modules.Matches.Api;
 [Route(ApiRoutes.V1 + "/admin/matches")]
 [Authorize(Policy = Policies.Admin)]
 [Tags("Matches (admin)")]
-internal sealed class MatchesAdminController(MatchesDbContext db, IClubApi club, IDomainEventDispatcher events, TimeProvider clock)
+internal sealed class MatchesAdminController(
+    MatchesDbContext db, IClubApi club, IDomainEventDispatcher events, TimeProvider clock,
+    Bob1.Shared.Contracts.Notifications.INotificationsApi notices, Bob1.Shared.Contracts.Identity.IIdentityApi people,
+    ICurrentUser actor, ILogger<MatchesAdminController> log)
     : ApiControllerBase
 {
+    /// <summary>match.venue_conflict: another scheduled match at the same venue within 2 hours; admins are told (push).</summary>
+    private Task VenueConflictAsync(Match m, string title, CancellationToken ct) =>
+        Safe.RunAsync(log, "venue conflict", async () =>
+        {
+            var from = m.StartsAtUtc.AddHours(-2);
+            var to = m.StartsAtUtc.AddHours(2);
+            var clash = await db.Matches.AsNoTracking().AnyAsync(x => x.Id != m.Id && x.VenueId == m.VenueId
+                && x.Status == MatchStatus.Scheduled && x.StartsAtUtc > from && x.StartsAtUtc < to, ct);
+            if (!clash) return;
+            var admins = (await people.GetUserIdsByRoleAsync("Admin", ct)).Where(id => !actor.IsAuthenticated || id != actor.UserId);
+            await notices.SendToUsersAsync(admins, "Conflit de lieu",
+                $"{title} ({Dates.Label(m.StartsAtUtc)}) : un autre match est prévu au même lieu à moins de 2 h.",
+                new Dictionary<string, string> { ["type"] = "match_venue_conflict", ["matchId"] = m.Id.ToString() }, ct);
+        });
+
     [HttpPost]
     public async Task<IActionResult> Create(MatchRequest r, CancellationToken ct)
     {
@@ -19,7 +38,11 @@ internal sealed class MatchesAdminController(MatchesDbContext db, IClubApi club,
         var m = Match.Create(r.HomeTeamId, r.AwayTeamId, r.VenueId, Dates.ToUtc(r.StartsAtUtc));
         db.Matches.Add(m);
         await db.SaveChangesAsync(ct);
-        return Created($"/api/v1/matches/{m.Id}", await m.ToDtoAsync(club, ct));
+
+        var labels = await MatchLabels.LoadAsync(club, [m], ct);
+        await events.DispatchAsync([new MatchCreated(m.Id, labels.Title(m), m.HomeTeamId, m.AwayTeamId, m.VenueId, m.StartsAtUtc)], ct);
+        await VenueConflictAsync(m, labels.Title(m), ct);
+        return Created($"/api/v1/matches/{m.Id}", m.ToDto(labels));
     }
 
     [HttpPut("{matchId:guid}")]
@@ -31,11 +54,17 @@ internal sealed class MatchesAdminController(MatchesDbContext db, IClubApi club,
 
         if (await ValidateAsync(r, ct) is { } invalid) return invalid.ToProblem();
 
+        var (oldStart, oldVenue, oldHome, oldAway) = (m.StartsAtUtc, m.VenueId, m.HomeTeamId, m.AwayTeamId);
         var updated = m.Update(r.HomeTeamId, r.AwayTeamId, r.VenueId, Dates.ToUtc(r.StartsAtUtc));
         if (!updated.IsSuccess) return updated.Error.ToProblem();
-        // TODO: publish MatchRescheduled so Participation can notify registered families.
         await db.SaveChangesAsync(ct);
-        return Ok(await m.ToDtoAsync(club, ct));
+
+        var labels = await MatchLabels.LoadAsync(club, [m], ct);
+        if (oldStart != m.StartsAtUtc || oldVenue != m.VenueId || oldHome != m.HomeTeamId || oldAway != m.AwayTeamId)
+            await events.DispatchAsync([new MatchRescheduled(m.Id, labels.Title(m), oldStart, m.StartsAtUtc,
+                oldVenue, m.VenueId, oldHome, oldAway, m.HomeTeamId, m.AwayTeamId)], ct);
+        if (oldStart != m.StartsAtUtc || oldVenue != m.VenueId) await VenueConflictAsync(m, labels.Title(m), ct);
+        return Ok(m.ToDto(labels));
     }
 
     [HttpPost("{matchId:guid}/cancel")]
@@ -65,7 +94,13 @@ internal sealed class MatchesAdminController(MatchesDbContext db, IClubApi club,
         var played = m.MarkPlayed();
         if (!played.IsSuccess) return played.Error.ToProblem();
         await db.SaveChangesAsync(ct);
-        return Ok(await m.ToDtoAsync(club, ct));
+
+        var labels = await MatchLabels.LoadAsync(club, [m], ct);
+        await Safe.RunAsync(log, "match played", () => notices.NotifyAdminsAsync("Match joué",
+            $"{labels.Title(m)} est marqué comme joué : les points sont attribués.",
+            new Dictionary<string, string> { ["type"] = "match_played", ["matchId"] = m.Id.ToString() },
+            actor.IsAuthenticated ? actor.UserId : null, ct));
+        return Ok(m.ToDto(labels));
     }
 
     private async Task<Error?> ValidateAsync(MatchRequest r, CancellationToken ct)

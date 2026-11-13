@@ -54,7 +54,8 @@ internal sealed class CarpoolController(CarpoolDbContext db, ICurrentUser user, 
     }
 
     [HttpPut("rides/{id:guid}")]
-    public async Task<IActionResult> UpdateRide(Guid id, OfferRideRequest r, CancellationToken ct)
+    public async Task<IActionResult> UpdateRide(Guid id, OfferRideRequest r,
+        [FromServices] INotificationsApi notifications, CancellationToken ct)
     {
         if (Guard.InRange(r.Seats, "seats", 1, 8) is { } err)
             return err.ToProblem();
@@ -64,10 +65,25 @@ internal sealed class CarpoolController(CarpoolDbContext db, ICurrentUser user, 
             var ride = await db.Rides.Include(x => x.Bookings).SingleOrDefaultAsync(x => x.Id == id, ct);
             if (ride is null || ride.DriverUserId != user.UserId) return Error.NotFound("ride.not_found", "Ride not found.").ToProblem();
 
+            var (oldDeparture, oldNotes, oldSeats) = (ride.DepartureUtc, ride.Notes, ride.Seats);
             var updated = ride.Update(r.Seats, Dates.ToUtc(r.DepartureUtc), r.Notes?.Trim());
             if (!updated.IsSuccess) return updated.Error.ToProblem();
 
-            try { await db.SaveChangesAsync(ct); return NoContent(); }
+            try
+            {
+                await db.SaveChangesAsync(ct);
+                // The passengers mostly care about the departure time (and any new instruction).
+                if (oldDeparture != ride.DepartureUtc || oldNotes != ride.Notes || oldSeats != ride.Seats)
+                {
+                    var passengers = ride.Bookings.Select(b => b.UserId).ToList();
+                    await notifications.SendToUsersAsync(passengers, "Covoiturage modifié",
+                        oldDeparture != ride.DepartureUtc
+                            ? $"Nouveau départ : {Dates.Label(ride.DepartureUtc)} (au lieu de {Dates.Label(oldDeparture)})."
+                            : "Le conducteur a modifié les informations du trajet.",
+                        new Dictionary<string, string> { ["type"] = "ride_updated", ["matchId"] = ride.MatchId.ToString(), ["rideId"] = ride.Id.ToString() }, ct);
+                }
+                return NoContent();
+            }
             catch (DbUpdateConcurrencyException) { db.ChangeTracker.Clear(); }
         }
         return Error.Conflict("ride.contention", "The ride was modified concurrently, please retry.").ToProblem();
@@ -94,7 +110,8 @@ internal sealed class CarpoolController(CarpoolDbContext db, ICurrentUser user, 
     }
 
     [HttpPost("rides/{id:guid}/booking")]
-    public async Task<IActionResult> Book(Guid id, CancellationToken ct)
+    public async Task<IActionResult> Book(Guid id,
+        [FromServices] INotificationsApi notifications, [FromServices] IIdentityApi identity, CancellationToken ct)
     {
         for (var attempt = 0; attempt < MaxRetries; attempt++)
         {
@@ -106,7 +123,18 @@ internal sealed class CarpoolController(CarpoolDbContext db, ICurrentUser user, 
             var booked = ride.Book(user.UserId, clock.GetUtcNow().UtcDateTime);
             if (!booked.IsSuccess) return booked.Error.ToProblem();
 
-            try { await db.SaveChangesAsync(ct); return NoContent(); }
+            try
+            {
+                await db.SaveChangesAsync(ct);
+                var name = (await identity.GetUserNamesAsync([user.UserId], ct)).GetValueOrDefault(user.UserId, "Quelqu'un");
+                await notifications.SendToPersonAsync(ride.DriverUserId, "Nouvelle réservation",
+                    $"{name} a réservé une place ({ride.SeatsLeft} restante(s)).",
+                    new Dictionary<string, string> { ["type"] = "ride_booked", ["matchId"] = ride.MatchId.ToString(), ["rideId"] = ride.Id.ToString() }, ct);
+                if (ride.SeatsLeft == 0)
+                    await notifications.SendToPersonAsync(ride.DriverUserId, "Trajet complet", "Toutes les places de votre trajet sont réservées.",
+                        new Dictionary<string, string> { ["type"] = "ride_full", ["matchId"] = ride.MatchId.ToString(), ["rideId"] = ride.Id.ToString() }, ct, push: false);
+                return NoContent();
+            }
             catch (DbUpdateConcurrencyException) { db.ChangeTracker.Clear(); }   // someone else booked first: re-check seats
             catch (DbUpdateException ex) when (ex.IsUniqueViolation()) // UNIQUE / PRIMARY KEY
             {
@@ -117,7 +145,8 @@ internal sealed class CarpoolController(CarpoolDbContext db, ICurrentUser user, 
     }
 
     [HttpDelete("rides/{id:guid}/booking")]
-    public async Task<IActionResult> CancelBooking(Guid id, CancellationToken ct)
+    public async Task<IActionResult> CancelBooking(Guid id,
+        [FromServices] INotificationsApi notifications, [FromServices] IIdentityApi identity, CancellationToken ct)
     {
         for (var attempt = 0; attempt < MaxRetries; attempt++)
         {
@@ -129,7 +158,15 @@ internal sealed class CarpoolController(CarpoolDbContext db, ICurrentUser user, 
             if (!cancelled.IsSuccess) return cancelled.Error.ToProblem();
             if (booking is not null) db.Bookings.Remove(booking);
 
-            try { await db.SaveChangesAsync(ct); return NoContent(); }
+            try
+            {
+                await db.SaveChangesAsync(ct);
+                var name = (await identity.GetUserNamesAsync([user.UserId], ct)).GetValueOrDefault(user.UserId, "Quelqu'un");
+                await notifications.SendToPersonAsync(ride.DriverUserId, "Réservation annulée",
+                    $"{name} a annulé sa réservation : une place s'est libérée.",
+                    new Dictionary<string, string> { ["type"] = "ride_booking_cancelled", ["matchId"] = ride.MatchId.ToString(), ["rideId"] = ride.Id.ToString() }, ct);
+                return NoContent();
+            }
             catch (DbUpdateConcurrencyException) { db.ChangeTracker.Clear(); }
         }
         return Error.Conflict("ride.contention", "Please retry.").ToProblem();

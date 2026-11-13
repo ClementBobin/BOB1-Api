@@ -14,8 +14,15 @@ internal sealed record SeasonOverviewDto(string Label, DateOnly StartsOn, DateOn
 [Route(ApiRoutes.V1 + "/admin")]
 [Authorize(Policy = Policies.Admin)]
 [Tags("Club (admin)")]
-internal sealed class ClubAdminController(ClubDbContext db, TimeProvider clock) : ApiControllerBase
+internal sealed class ClubAdminController(
+    ClubDbContext db, TimeProvider clock, Bob1.Shared.Contracts.Notifications.INotificationsApi notices,
+    Bob1.Shared.Contracts.Identity.IIdentityApi people, ICurrentUser actor, ILogger<ClubAdminController> log) : ApiControllerBase
 {
+    /// <summary>In-app alert for the other admins (no push): structural changes worth knowing about.</summary>
+    private Task AlertAdminsAsync(string title, string body, string type, CancellationToken ct) =>
+        Safe.RunAsync(log, title, () => notices.NotifyAdminsAsync(title, body,
+            new Dictionary<string, string> { ["type"] = type }, actor.IsAuthenticated ? actor.UserId : null, ct));
+
     // ---- Seasons (read-only history) ----
 
     /// <summary>One row per season: players per division, matches and points, for the "Saisons" overview.</summary>
@@ -70,8 +77,13 @@ internal sealed class ClubAdminController(ClubDbContext db, TimeProvider clock) 
         d.Name = r.Name.Trim();
         d.Category = r.Category.Trim();
         d.Gender = r.Gender.Trim();
+        var wasActive = d.IsActive;
         d.IsActive = r.IsActive;
         await db.SaveChangesAsync(ct);
+        if (wasActive != d.IsActive)
+            await AlertAdminsAsync(d.IsActive ? "Division réactivée" : "Division désactivée",
+                $"La division {d.Name} a été {(d.IsActive ? "réactivée" : "désactivée")} : vérifiez ses joueurs et ses matchs à venir.",
+                "club_entity_changed", ct);
         return Ok(new DivisionDto(d.Id, d.Name, d.Category, d.Gender, d.IsActive));
     }
 
@@ -86,6 +98,7 @@ internal sealed class ClubAdminController(ClubDbContext db, TimeProvider clock) 
             return Error.Conflict("division.has_teams", "Delete or move the teams of this division first.").ToProblem();
         db.Divisions.Remove(d);
         await db.SaveChangesAsync(ct);
+        await AlertAdminsAsync("Division supprimée", $"La division {d.Name} a été supprimée.", "club_entity_changed", ct);
         return NoContent();
     }
 
@@ -111,6 +124,7 @@ internal sealed class ClubAdminController(ClubDbContext db, TimeProvider clock) 
         if (t is null) return Error.NotFound("team.not_found", "Team not found.").ToProblem();
         if (!await db.Divisions.AnyAsync(d => d.Id == r.DivisionId, ct))
             return Error.NotFound("division.not_found", "Division not found.").ToProblem();
+        var (oldCoach, oldVenue, wasActive) = (t.CoachUserId, t.TrainingVenueId, t.IsActive);
         t.Name = r.Name.Trim();
         t.DivisionId = r.DivisionId;
         t.CoachName = r.CoachName?.Trim();
@@ -119,6 +133,31 @@ internal sealed class ClubAdminController(ClubDbContext db, TimeProvider clock) 
         t.IsActive = r.IsActive;
         t.TrainingVenueId = r.TrainingVenueId;
         await db.SaveChangesAsync(ct);
+
+        await Safe.RunAsync(log, "team changed", async () =>
+        {
+            var data = new Dictionary<string, string> { ["type"] = "team_changed", ["teamId"] = t.Id.ToString() };
+            if (oldCoach != t.CoachUserId)
+            {
+                // Previous and new coach are both told; admins get an audit copy.
+                if (oldCoach is { } previous)
+                    await notices.SendToPersonAsync(previous, "Équipe : coach modifié", $"Vous n'êtes plus coach de {t.Name}.", data, ct);
+                if (t.CoachUserId is { } next)
+                    await notices.SendToPersonAsync(next, "Équipe : coach modifié", $"Vous êtes maintenant coach de {t.Name}.", data, ct);
+                await notices.NotifyAdminsAsync("Coach modifié", $"Le coach de {t.Name} a changé.", data, actor.IsAuthenticated ? actor.UserId : null, ct);
+            }
+            if (oldVenue != t.TrainingVenueId)
+            {
+                var venueName = t.TrainingVenueId is { } v ? (await db.Venues.FindAsync([v], ct))?.Name ?? "?" : "aucun";
+                var audience = (await people.GetUserIdsByTeamsAsync([t.Id], ct)).ToHashSet();
+                if (t.CoachUserId is { } coachId) audience.Add(coachId);
+                await notices.SendToUsersAsync(audience, "Lieu d'entraînement modifié", $"{t.Name} s'entraîne maintenant à : {venueName}.", data, ct);
+            }
+            if (wasActive != t.IsActive)
+                await notices.NotifyAdminsAsync(t.IsActive ? "Équipe réactivée" : "Équipe désactivée",
+                    $"L'équipe {t.Name} a été {(t.IsActive ? "réactivée" : "désactivée")} : vérifiez ses joueurs et ses matchs à venir.",
+                    data, actor.IsAuthenticated ? actor.UserId : null, ct);
+        });
         return Ok(new TeamDto(t.Id, t.Name, t.DivisionId, t.CoachName, t.CoachUserId, t.LogoUrl, t.IsActive, t.TrainingVenueId));
     }
 
@@ -129,6 +168,7 @@ internal sealed class ClubAdminController(ClubDbContext db, TimeProvider clock) 
         if (t is null) return Error.NotFound("team.not_found", "Team not found.").ToProblem();
         db.Teams.Remove(t);
         await db.SaveChangesAsync(ct);
+        await AlertAdminsAsync("Équipe supprimée", $"L'équipe {t.Name} a été supprimée.", "club_entity_changed", ct);
         return NoContent();
     }
 
@@ -166,6 +206,7 @@ internal sealed class ClubAdminController(ClubDbContext db, TimeProvider clock) 
         if (v is null) return Error.NotFound("venue.not_found", "Venue not found.").ToProblem();
         db.Venues.Remove(v);
         await db.SaveChangesAsync(ct);
+        await AlertAdminsAsync("Lieu supprimé", $"Le lieu {v.Name} a été supprimé.", "club_entity_changed", ct);
         return NoContent();
     }
 }

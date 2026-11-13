@@ -226,3 +226,40 @@ Même format que le tableau consolidé (Priorité, Clé, Type, Variante, Portée
 - Regroupement : pour les notifications répétées sur une même entité (par exemple plusieurs réservations sur un même trajet), utiliser une clé de regroupement (collapse key FCM) plutôt qu'un push par événement.
 - Fiabilité d'envoi : puisque le push est best-effort, passer par une table d'envoi (outbox) avec nouvelle tentative évite de perdre une notification critique (annulation de match, par exemple) lors d'une panne ponctuelle.
 - Limitation de débit des diffusions admin : éviter qu'une diffusion « tous les membres » répétée ne sature les utilisateurs.
+
+## État d'implémentation (branche `feat/notifications`)
+
+Règles appliquées partout : canaux push + in-app, sauf les copies d'audit admin (in-app seulement, sans l'admin qui a agi) ; aucun email.
+Les notifications sont envoyées après l'enregistrement et ne font jamais échouer l'action de l'admin (erreurs journalisées).
+
+**Fait**
+
+| Clé | Où |
+|---|---|
+| match.created (joueurs + familles des deux équipes, alerte admin si personne, copie admin) | Notifications / `MatchCreatedHandler` |
+| match.cancelled (familles confirmées, inscrits, joueurs, staff si postes staff, copie admin) | Participation / `MatchCancelledHandler` |
+| match.rescheduled (diff date / lieu / équipes) | Participation / `MatchRescheduledHandler` |
+| cascade match annulé → covoiturages supprimés + conducteurs/passagers prévenus (sans pénalité conducteur) | Carpool / `MatchCancelledRidesHandler` |
+| cascade match replanifié → conducteurs/passagers | Carpool / `MatchRescheduledRidesHandler` |
+| slot.created (staff, ou parents des équipes du match) | `SlotsAdminController.Create` |
+| slot.updated (inscrits) et slot.deleted (inscrits ; la suppression est maintenant autorisée avec inscrits, sans pénalité) | `SlotsAdminController` |
+| slot.late_withdrawal (fenêtre J-4, admins) et slot.join_confirmation (in-app) | `SlotMembershipHandler` |
+| ride.booked, ride.booking_cancelled, ride.updated | `CarpoolController` |
+| person.team_division_changed, person.family_changed, person.role_changed, person.status_changed, person.participation_suspended / restored | Identity / `PeopleNotices` |
+| family.member_joined (in-app) | `AuthService.RegisterAsync` |
+| security.password_changed (in-app + push ; pas d'email car aucun envoi email n'existe) | `MeController` |
+| points.adjusted (ajout, modification, révocation), penalty.applied (+ famille), ranking.rule_changed (message groupé in-app) | `RankingAdminController` |
+| team.coach_changed, team.training_venue_changed, désactivation / suppression division, équipe, lieu (alertes admin) | `ClubAdminController` |
+| season.started | `SeasonService` |
+| broadcast.sent : ciblage par équipe (`TeamId`) + copie in-app aux admins absents des destinataires | `NotificationsAdminController` |
+| season.ended (avant season.started) | `SeasonService` |
+| rappels : slot.urgent_unfilled, match.reminder (J-1 / jour J), penalty.deadline_reminder (dédupliqués par clé dans `DataJson`, expiration) | Participation / `ParticipationReminderService` |
+| ride.reminder (conducteur + passagers) | Carpool / `RideReminderService` |
+| ride.offered (familles confirmées), ride.full (conducteur) | Participation / `RideOfferedHandler`, `CarpoolController` |
+| presence.confirmed (autres membres de la famille) | `ConfirmPresenceHandler` |
+| slot full (admins) et slot.conflict (blocage de l'inscription) | `SlotMembershipHandler` |
+| match.venue_conflict (blocage + alerte), match.played (copie admin) | `MatchesAdminController` |
+| person.unassigned (admins), security.email_changed (in-app + push) | Identity / `PeopleNotices` |
+| compte désactivé : admins prévenus des postes à pourvoir, passagers prévenus si le conducteur est désactivé (événement `UserDeactivated`) | Participation / `UserDeactivatedHandler`, Carpool / `DriverDeactivatedHandler` |
+
+**Pas fait (à planifier)** : digests (position au classement, familles, admin), ranking.milestone, liste d'attente, penalty.ack_pending, presence.withdrawn / summary, pénalité automatique, invitation.expiring, security.new_device_login / sessions_revoked / password_reset_by_admin et l'envoi d'email de sécurité, préférences par type, heures calmes, deep links normalisés, collapse key FCM, outbox avec reprise, alertes système (échecs FCM, sans token, version minimale), broadcast.updated/deleted/expired, seuil de suspension.

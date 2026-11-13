@@ -8,9 +8,27 @@ namespace Bob1.Modules.Ranking.Api;
 [Route(ApiRoutes.V1 + "/admin")]
 [Authorize(Policy = Policies.Admin)]
 [Tags("Ranking (admin)")]
-internal sealed class RankingAdminController(RankingDbContext db, IIdentityApi identity, ICurrentUser user, TimeProvider clock)
+internal sealed class RankingAdminController(
+    RankingDbContext db, IIdentityApi identity, ICurrentUser user, TimeProvider clock,
+    INotificationsApi notices, ILogger<RankingAdminController> log)
     : ApiControllerBase
 {
+    private static string Signed(int pts) => $"{(pts > 0 ? "+" : "")}{pts} pts";
+
+    /// <summary>The person is told (push), their family too for a penalty, other admins get an in-app audit copy.</summary>
+    private Task NotifyPointsAsync(Guid personId, string title, string body, bool toFamily, CancellationToken ct) =>
+        Safe.RunAsync(log, "points notification", async () =>
+        {
+            var data = new Dictionary<string, string> { ["type"] = "ranking_entry", ["personId"] = personId.ToString() };
+            var recipients = new HashSet<Guid> { personId };
+            if (toFamily && await identity.GetMemberAsync(personId, ct) is { FamilyId: { } familyId })
+                recipients.UnionWith(await identity.GetUserIdsOfFamilyAsync(familyId, ct));
+            await notices.SendToUsersAsync(recipients, title, body, data, ct);
+
+            var name = (await identity.GetPersonNamesAsync([personId], ct)).GetValueOrDefault(personId, "?");
+            await notices.NotifyAdminsAsync(title, $"{name} : {body}", data, user.UserId, ct);
+        });
+
     // Person (or family) rankings (admin view, bigger page)
     [HttpQuery("rankings")]
     public async Task<IActionResult> Rankings([FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] RankingQuery? query, CancellationToken ct) =>
@@ -30,6 +48,14 @@ internal sealed class RankingAdminController(RankingDbContext db, IIdentityApi i
         rule.PointsJ15 = r.PointsJ15;
         rule.PointsJ4 = r.PointsJ4;
         await db.SaveChangesAsync(ct);
+
+        // Transparency: everyone gets a single in-app message (no push), admins an audit copy.
+        await Safe.RunAsync(log, "rule changed", async () =>
+        {
+            var body = $"Barème modifié : « {rule.Label} » vaut maintenant {Signed(rule.Points)}.";
+            var data = new Dictionary<string, string> { ["type"] = "ranking_rule_changed", ["ruleKey"] = rule.Key };
+            await notices.SendToUsersAsync(await identity.GetUserIdsByDivisionAsync(null, ct), "Barème des points", body, data, ct, push: false);
+        });
         return Ok(new RuleDto(rule.Key, rule.Category, rule.Label, rule.Points, rule.PointsJ15, rule.PointsJ4, rule.HasJ15J4));
     }
 
@@ -76,6 +102,8 @@ internal sealed class RankingAdminController(RankingDbContext db, IIdentityApi i
         if (!entry.IsManual) return Error.Conflict("points.not_manual", "Only manual adjustments can be revoked.").ToProblem();
         if (entry.Season != Season.Current(clock)) return ClosedSeason().ToProblem();
         await points.RevokeAsync(entry.SourceKey, $"{PointEntry.RevokePrefix}{id}", ct);
+        await NotifyPointsAsync(entry.PersonId, "Points annulés",
+            $"L'ajustement « {entry.Reason} » ({Signed(entry.Points)}) a été annulé.", false, ct);
         return NoContent();
     }
 
@@ -94,6 +122,8 @@ internal sealed class RankingAdminController(RankingDbContext db, IIdentityApi i
         entry.UpdateManual(r.Category, r.Points, r.Reason.Trim(), r.MatchId);
         await db.SaveChangesAsync(ct);
         var name = (await identity.GetPersonNamesAsync([entry.PersonId], ct)).GetValueOrDefault(entry.PersonId, "?");
+        await NotifyPointsAsync(entry.PersonId, "Points modifiés",
+            $"Un ajustement a été modifié : {Signed(entry.Points)} ({entry.Reason}).", false, ct);
         return Ok(new EntryDto(entry.Id, entry.Category, entry.Points, entry.Reason, entry.MatchId, entry.CreatedAtUtc, entry.PersonId, name, true, false));
     }
 
@@ -149,9 +179,7 @@ internal sealed class RankingAdminController(RankingDbContext db, IIdentityApi i
 
         var entry = await points.AddManualAsync(r.PersonId, category, pts, reason, r.MatchId, user.UserId, ct);
 
-        await notifications.SendToPersonAsync(r.PersonId, pts < 0 ? "Pénalité" : "Bonus",
-            $"{(pts > 0 ? "+" : "")}{pts} pts : {reason}",
-            new Dictionary<string, string> { ["type"] = "ranking_entry" }, ct);
+        await NotifyPointsAsync(r.PersonId, pts < 0 ? "Pénalité" : "Bonus", $"{Signed(pts)} : {reason}", pts < 0, ct);
 
         return Created($"/api/v1/admin/penalties?personId={r.PersonId}",
             new EntryDto(entry.Id, entry.Category, entry.Points, entry.Reason, entry.MatchId, entry.CreatedAtUtc, entry.PersonId, "", true, false));

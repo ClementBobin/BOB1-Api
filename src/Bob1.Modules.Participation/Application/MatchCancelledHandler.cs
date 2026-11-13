@@ -5,27 +5,26 @@ using Bob1.Shared.Contracts.Notifications;
 namespace Bob1.Modules.Participation.Application;
 
 /// <summary>
-/// Matches publishes MatchCancelled; we tell everyone concerned: the players of the two teams and their families
-/// (team -> user, through Identity), the families who had confirmed presence, and the staff / volunteers signed up.
+/// Matches publishes MatchCancelled; we tell everyone concerned (players and their families, confirmed families,
+/// people signed up, the staff when the match has staff slots) and leave an in-app audit copy to the other admins.
 /// </summary>
-internal sealed class MatchCancelledHandler(ParticipationDbContext db, INotificationsApi notifications, IIdentityApi identity)
+internal sealed class MatchCancelledHandler(
+    ParticipationDbContext db, INotificationsApi notifications, IIdentityApi identity, IMatchesApi matches,
+    ICurrentUser actor, ILogger<MatchCancelledHandler> log)
     : IDomainEventHandler<MatchCancelled>
 {
-    public async Task HandleAsync(MatchCancelled e, CancellationToken ct)
+    public Task HandleAsync(MatchCancelled e, CancellationToken ct) => Safe.RunAsync(log, "match cancelled", async () =>
     {
-        var recipients = new HashSet<Guid>(await identity.GetUserIdsByTeamsAsync([e.HomeTeamId, e.AwayTeamId], ct));
-
-        // A family that confirmed may have left the team since: it still needs to know.
-        var confirmedFamilies = await db.PresenceConfirmations.Where(p => p.MatchId == e.MatchId).Select(p => p.FamilyId)
-            .ToListAsync(ct);
-        foreach (var familyId in confirmedFamilies)
-            recipients.UnionWith(await identity.GetUserIdsOfFamilyAsync(familyId, ct));
-
-        var staffAndVolunteers = await db.Slots.Where(s => s.MatchId == e.MatchId)
-            .SelectMany(s => s.Signups).Select(x => x.UserId).Distinct().ToListAsync(ct);
-        recipients.UnionWith(staffAndVolunteers);
+        var audience = await MatchAudience.ResolveAsync(db, identity, matches, e.MatchId, ct);
+        if (await db.Slots.AnyAsync(s => s.MatchId == e.MatchId && s.Kind == SlotKind.Staff, ct))
+            audience.UnionWith(await identity.GetUserIdsByRoleAsync("Staff", ct));
 
         var data = new Dictionary<string, string> { ["type"] = "match_cancelled", ["matchId"] = e.MatchId.ToString() };
-        await notifications.SendToUsersAsync(recipients.ToList(), "Match annulé", $"{e.Title} a été annulé.", data, ct);
-    }
+        const string title = "Match annulé";
+        var body = $"{e.Title} ({Dates.Label(e.StartsAtUtc)}) a été annulé.";
+
+        await notifications.SendToUsersAsync(audience, title, body, data, ct);
+        await notifications.NotifyAdminsAsync(title, body + (audience.Count == 0 ? " Personne n'était concerné." : ""), data,
+            actor.IsAuthenticated ? actor.UserId : null, ct);
+    });
 }

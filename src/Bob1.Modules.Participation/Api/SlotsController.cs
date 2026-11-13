@@ -1,4 +1,6 @@
+using Bob1.Shared.Contracts.Identity;
 using Bob1.Shared.Contracts.Matches;
+using Bob1.Shared.Contracts.Notifications;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -35,17 +37,32 @@ internal sealed class SlotsController(SlotMembershipHandler h) : ApiControllerBa
 [Route(ApiRoutes.V1 + "/admin")]
 [Authorize(Policy = Policies.Admin)]
 [Tags("Participation (admin)")]
-internal sealed class SlotsAdminController(ParticipationDbContext db, IMatchesApi matches, TimeProvider clock) : ApiControllerBase
+internal sealed class SlotsAdminController(
+    ParticipationDbContext db, IMatchesApi matches, IIdentityApi identity, INotificationsApi notifications,
+    ICurrentUser actor, TimeProvider clock, ILogger<SlotsAdminController> log) : ApiControllerBase
 {
     [HttpPost("matches/{matchId:guid}/slots")]
     public async Task<IActionResult> Create(Guid matchId, SlotRequest r, CancellationToken ct)
     {
         if (Validate(r, out var kind) is { } err) return err.ToProblem();
-        if (await matches.GetAsync(matchId, ct) is null) return ParticipationErrors.MatchNotFound.ToProblem();
+        var match = await matches.GetAsync(matchId, ct);
+        if (match is null) return ParticipationErrors.MatchNotFound.ToProblem();
 
         var slot = Slot.Create(matchId, kind, r.Role.Trim(), r.Capacity, Dates.ToUtc(r.StartsAtUtc), Dates.ToUtc(r.EndsAtUtc));
         db.Slots.Add(slot);
         await db.SaveChangesAsync(ct);
+
+        // A new open slot: staff slots go to the staff, volunteer slots to the parents of the match's teams.
+        await Safe.RunAsync(log, "slot created", async () =>
+        {
+            IEnumerable<Guid> audience = kind == SlotKind.Staff
+                ? await identity.GetUserIdsByRoleAsync("Staff", ct)
+                : (await identity.GetUserIdsByTeamsAsync([match.HomeTeamId, match.AwayTeamId], ct))
+                    .Intersect(await identity.GetUserIdsByRoleAsync("Parent", ct));
+            await notifications.SendToUsersAsync(audience, "Nouveau poste à pourvoir",
+                $"{slot.Role} ({slot.Capacity} place(s)) sur {match.Title}, {Dates.Label(match.StartsAtUtc)}.",
+                new Dictionary<string, string> { ["type"] = "slot_created", ["matchId"] = matchId.ToString(), ["slotId"] = slot.Id.ToString() }, ct);
+        });
         return Created($"/api/v1/matches/{matchId}/participation", new { id = slot.Id });
     }
 
@@ -56,21 +73,47 @@ internal sealed class SlotsAdminController(ParticipationDbContext db, IMatchesAp
         var slot = await db.Slots.SingleOrDefaultAsync(s => s.Id == id, ct);
         if (slot is null) return ParticipationErrors.SlotNotFound.ToProblem();
 
+        var (oldRole, oldCapacity, oldStart, oldEnd) = (slot.Role, slot.Capacity, slot.StartsAtUtc, slot.EndsAtUtc);
         var updated = slot.Update(r.Role.Trim(), r.Capacity, Dates.ToUtc(r.StartsAtUtc), Dates.ToUtc(r.EndsAtUtc));
         if (!updated.IsSuccess) return updated.Error.ToProblem();
         await db.SaveChangesAsync(ct);
+
+        // Tell the people already signed up what changed (role, hours); a lower capacity does not eject anyone (it is refused below Filled).
+        if (oldRole != slot.Role || oldStart != slot.StartsAtUtc || oldEnd != slot.EndsAtUtc || oldCapacity != slot.Capacity)
+            await Safe.RunAsync(log, "slot updated", async () =>
+            {
+                var signed = await db.SlotSignups.Where(x => x.SlotId == id).Select(x => x.UserId).ToListAsync(ct);
+                var changes = new List<string>();
+                if (oldRole != slot.Role) changes.Add($"rôle {oldRole} → {slot.Role}");
+                if (oldStart != slot.StartsAtUtc || oldEnd != slot.EndsAtUtc) changes.Add("horaires modifiés");
+                if (oldCapacity != slot.Capacity) changes.Add($"places {oldCapacity} → {slot.Capacity}");
+                var title = (await matches.GetAsync(slot.MatchId, ct))?.Title ?? "le match";
+                await notifications.SendToUsersAsync(signed, "Poste modifié", $"{title} : {string.Join(", ", changes)}.",
+                    new Dictionary<string, string> { ["type"] = "slot_updated", ["matchId"] = slot.MatchId.ToString(), ["slotId"] = id.ToString() }, ct);
+            });
         return NoContent();
     }
 
     [HttpDelete("slots/{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
-        var slot = await db.Slots.SingleOrDefaultAsync(s => s.Id == id, ct);
+        var slot = await db.Slots.Include(s => s.Signups).SingleOrDefaultAsync(s => s.Id == id, ct);
         if (slot is null) return ParticipationErrors.SlotNotFound.ToProblem();
-        if (slot.Filled > 0)
-            return Error.Conflict("slot.has_signups", "Remove the people signed up first (or lower the capacity).").ToProblem();
+
+        // People signed up are warned (signups cascade; no penalty: the admin removed the slot, nobody withdrew).
+        var signed = slot.Signups.Select(x => x.UserId).ToList();
+        var (matchId, role) = (slot.MatchId, slot.Role);
         db.Slots.Remove(slot);
         await db.SaveChangesAsync(ct);
+
+        if (signed.Count > 0)
+            await Safe.RunAsync(log, "slot deleted", async () =>
+            {
+                var title = (await matches.GetAsync(matchId, ct))?.Title ?? "le match";
+                await notifications.SendToUsersAsync(signed, "Poste supprimé",
+                    $"Le poste {role} sur {title} a été supprimé : votre inscription est annulée.",
+                    new Dictionary<string, string> { ["type"] = "slot_deleted", ["matchId"] = matchId.ToString() }, ct);
+            });
         return NoContent();
     }
 

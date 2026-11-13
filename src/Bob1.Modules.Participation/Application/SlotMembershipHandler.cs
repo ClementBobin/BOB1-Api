@@ -1,11 +1,16 @@
 using Bob1.Shared.Contracts.Identity;
 using Bob1.Shared.Contracts.Matches;
+using Bob1.Shared.Contracts.Notifications;
 
 namespace Bob1.Modules.Participation.Application;
 
 internal sealed class SlotMembershipHandler(
-    ParticipationDbContext db, IMatchesApi matches, IIdentityApi identity, ICurrentUser user, IDomainEventDispatcher events, TimeProvider clock)
+    ParticipationDbContext db, IMatchesApi matches, IIdentityApi identity, ICurrentUser user, IDomainEventDispatcher events,
+    INotificationsApi notifications, TimeProvider clock, ILogger<SlotMembershipHandler> log)
 {
+    /// <summary>Withdrawing this close to the match is the urgent case for the organisers (same window as the J-4 penalty rule).</summary>
+    private const int LateWithdrawalDays = 4;
+
     private const int MaxAttempts = 3;
 
     public async Task<Result> JoinAsync(Guid slotId, CancellationToken ct)
@@ -38,6 +43,31 @@ internal sealed class SlotMembershipHandler(
 
             await events.DispatchAsync(slot.DomainEvents, ct);
             slot.ClearDomainEvents();
+
+            // slot.full: the admins see that the slot is now filled (in-app); slot.conflict: another slot close in time.
+            await Safe.RunAsync(log, "slot full / conflict", async () =>
+            {
+                var data = new Dictionary<string, string> { ["type"] = "slot_full", ["matchId"] = slot.MatchId.ToString(), ["slotId"] = slot.Id.ToString() };
+                if (slot.Filled >= slot.Capacity)
+                    await notifications.NotifyAdminsAsync("Poste pourvu", $"« {slot.Role} » sur {match?.Title ?? "le match"} est complet.", data, user.UserId, ct);
+
+                if (match is null) return;
+                var otherMatchIds = await db.SlotSignups.AsNoTracking()
+                    .Where(x => x.UserId == user.UserId && x.SlotId != slot.Id)
+                    .Join(db.Slots, x => x.SlotId, s => s.Id, (_, s) => s.MatchId)
+                    .Where(id => id != slot.MatchId).Distinct().ToListAsync(ct);
+                var others = await matches.GetManyAsync(otherMatchIds, ct);
+                if (others.Values.Any(o => Math.Abs((o.StartsAtUtc - match.StartsAtUtc).TotalHours) < 2))
+                    await notifications.SendToPersonAsync(user.UserId, "Postes qui se chevauchent",
+                        $"Vous êtes déjà inscrit sur un autre match proche de {match.Title} ({Dates.Label(match.StartsAtUtc)}).",
+                        new Dictionary<string, string> { ["type"] = "slot_conflict", ["matchId"] = slot.MatchId.ToString() }, ct, push: false);
+            });
+
+            // In-app receipt for the person who signed up.
+            await Safe.RunAsync(log, "slot join receipt", () => notifications.SendToPersonAsync(user.UserId, "Inscription enregistrée",
+                $"Vous êtes inscrit comme {slot.Role} sur {match?.Title ?? "le match"}.",
+                new Dictionary<string, string> { ["type"] = "slot_joined", ["matchId"] = slot.MatchId.ToString(), ["slotId"] = slot.Id.ToString() },
+                ct, push: false));
             return Result.Success();
         }
         return Error.Conflict("slot.contention", "Too many simultaneous requests, please retry.");
@@ -71,6 +101,16 @@ internal sealed class SlotMembershipHandler(
 
             await events.DispatchAsync(slot.DomainEvents, ct);
             slot.ClearDomainEvents();
+
+            if (match is not null && match.StartsAtUtc - now <= TimeSpan.FromDays(LateWithdrawalDays))
+                await Safe.RunAsync(log, "late withdrawal", async () =>
+                {
+                    var name = (await identity.GetUserNamesAsync([user.UserId], ct)).GetValueOrDefault(user.UserId, "Quelqu'un");
+                    var admins = (await identity.GetUserIdsByRoleAsync("Admin", ct)).Where(id => id != user.UserId).ToList();
+                    await notifications.SendToUsersAsync(admins, "Désinscription tardive",
+                        $"{name} s'est désinscrit du poste {slot.Role} sur {match.Title} ({Dates.Label(match.StartsAtUtc)}).",
+                        new Dictionary<string, string> { ["type"] = "slot_late_withdrawal", ["matchId"] = slot.MatchId.ToString(), ["slotId"] = slot.Id.ToString() }, ct);
+                });
             return Result.Success();
         }
         return Error.Conflict("slot.contention", "Too many simultaneous requests, please retry.");

@@ -61,6 +61,31 @@ internal sealed class IdentityApi(IdentityDbContext db, MembershipService member
         return users.ToDictionary(u => u.Id, u => $"{u.FirstName} {u.LastName}".Trim());
     }
 
+    public async Task<IReadOnlyList<Guid>> GetUserIdsByRoleAsync(string role, CancellationToken ct)
+    {
+        if (!Enum.TryParse<UserRoles>(role, ignoreCase: true, out var flag) || flag == UserRoles.None) return [];
+        return await db.Users.AsNoTracking().Where(u => u.IsActive && (u.Roles & flag) == flag).Select(u => u.Id).ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<Guid>> GetPlayerIdsByTeamsAsync(IReadOnlyCollection<Guid> teamIds, CancellationToken ct)
+    {
+        var season = await memberships.EnsureCurrentSeasonAsync(ct);
+        return await db.TeamMemberships.AsNoTracking()
+            .Where(t => t.Season == season && teamIds.Contains(t.TeamId))
+            .Join(db.Users.Where(u => u.IsActive), t => t.UserId, u => u.Id, (_, u) => u.Id)
+            .Distinct().ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<Guid>> GetUserIdsByTeamsAsync(IReadOnlyCollection<Guid> teamIds, CancellationToken ct)
+    {
+        var players = await GetPlayerIdsByTeamsAsync(teamIds, ct);
+        if (players.Count == 0) return [];
+        var familyIds = db.Users.Where(u => players.Contains(u.Id) && u.FamilyId != null).Select(u => u.FamilyId!.Value);
+        return await db.Users.AsNoTracking()
+            .Where(u => u.IsActive && (players.Contains(u.Id) || (u.FamilyId != null && familyIds.Contains(u.FamilyId.Value))))
+            .Select(u => u.Id).ToListAsync(ct);
+    }
+
     public async Task<IReadOnlyList<Guid>> GetUserIdsOfFamilyAsync(Guid familyId, CancellationToken ct) =>
         await db.Users.AsNoTracking().Where(u => u.FamilyId == familyId && u.IsActive).Select(u => u.Id).ToListAsync(ct);
 
