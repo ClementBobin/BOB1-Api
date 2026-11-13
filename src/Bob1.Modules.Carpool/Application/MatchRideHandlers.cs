@@ -51,3 +51,20 @@ internal sealed class MatchRescheduledRidesHandler(
             $"{e.Title} : {diff}. Vérifiez l'heure de départ avec le conducteur.", data, ct);
     });
 }
+
+/// <summary>The driver's account was disabled: passengers of rides still to come are told the driver is unavailable.</summary>
+internal sealed class DriverDeactivatedHandler(CarpoolDbContext db, INotificationsApi notifications, TimeProvider clock, ILogger<DriverDeactivatedHandler> log)
+    : IDomainEventHandler<Bob1.Shared.Contracts.Identity.UserDeactivated>
+{
+    public Task HandleAsync(Bob1.Shared.Contracts.Identity.UserDeactivated e, CancellationToken ct) =>
+        Safe.RunAsync(log, "driver deactivated", async () =>
+        {
+            var now = clock.GetUtcNow().UtcDateTime;
+            var rides = await db.Rides.AsNoTracking().Include(r => r.Bookings)
+                .Where(r => r.DriverUserId == e.UserId && r.DepartureUtc > now).ToListAsync(ct);
+            foreach (var ride in rides)
+                await notifications.SendToUsersAsync(ride.Bookings.Select(b => b.UserId), "Covoiturage : conducteur indisponible",
+                    $"Le conducteur de votre trajet du {Dates.Label(ride.DepartureUtc)} n'est plus disponible. Trouvez une autre solution.",
+                    new Dictionary<string, string> { ["type"] = "ride_driver_unavailable", ["matchId"] = ride.MatchId.ToString(), ["rideId"] = ride.Id.ToString() }, ct);
+        });
+}

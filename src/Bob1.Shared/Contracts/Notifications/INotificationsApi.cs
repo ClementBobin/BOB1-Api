@@ -15,6 +15,15 @@ public interface INotificationsApi
         DateTime? expiresAtUtc = null, bool recurring = false, bool startup = false, bool push = true);
 
     /// <summary>
+    /// Like <see cref="SendToUsersAsync"/> but each user gets it at most once per <paramref name="dedupeKey"/>
+    /// (type + entity + period, e.g. "slot-urgent-j4:{slotId}"): the shared de-duplication for every reminder.
+    /// Returns how many users were notified.
+    /// </summary>
+    Task<int> SendToUsersOnceAsync(string dedupeKey, IEnumerable<Guid> userIds, string title, string body,
+        IReadOnlyDictionary<string, string>? data = null, CancellationToken ct = default,
+        DateTime? expiresAtUtc = null, bool push = true);
+
+    /// <summary>
     /// Audit copy for every active admin: in-app only (no push), skipping the admin who triggered the action.
     /// </summary>
     Task NotifyAdminsAsync(string title, string body, IReadOnlyDictionary<string, string>? data = null,

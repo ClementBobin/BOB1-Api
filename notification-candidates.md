@@ -252,6 +252,14 @@ Les notifications sont envoyées après l'enregistrement et ne font jamais écho
 | team.coach_changed, team.training_venue_changed, désactivation / suppression division, équipe, lieu (alertes admin) | `ClubAdminController` |
 | season.started | `SeasonService` |
 | broadcast.sent : ciblage par équipe (`TeamId`) + copie in-app aux admins absents des destinataires | `NotificationsAdminController` |
+| season.ended (avant season.started) | `SeasonService` |
+| rappels : slot.urgent_unfilled, match.reminder (J-1 / jour J), penalty.deadline_reminder (dédupliqués par clé dans `DataJson`, expiration) | Participation / `ParticipationReminderService` |
+| ride.reminder (conducteur + passagers) | Carpool / `RideReminderService` |
+| ride.offered (familles confirmées), ride.full (conducteur) | Participation / `RideOfferedHandler`, `CarpoolController` |
+| presence.confirmed (autres membres de la famille) | `ConfirmPresenceHandler` |
+| slot full (admins) et slot.conflict (blocage de l'inscription) | `SlotMembershipHandler` |
+| match.venue_conflict (blocage + alerte), match.played (copie admin) | `MatchesAdminController` |
+| person.unassigned (admins), security.email_changed (in-app + push) | Identity / `PeopleNotices` |
+| compte désactivé : admins prévenus des postes à pourvoir, passagers prévenus si le conducteur est désactivé (événement `UserDeactivated`) | Participation / `UserDeactivatedHandler`, Carpool / `DriverDeactivatedHandler` |
 
-**Pas fait (à planifier)** : rappels périodiques (slot.urgent_unfilled, match.reminder, ride.reminder, penalty.deadline_reminder, penalty.ack_pending, presence.summary), digests (position au classement, familles, admin), ranking.milestone, season.ended, liste d'attente, présence confirmée/annulée par un proche, ride.offered / ride.no_passenger / ride.full, conflits (slot.conflict, match.venue_conflict), pénalité automatique, invitation.expiring, security.new_device_login / sessions_revoked / email_changed / password_reset_by_admin et l'envoi d'email de sécurité, préférences par type, heures calmes, deep links normalisés, expiration, collapse key FCM, outbox avec reprise, table de déduplication commune, alertes système (échecs FCM, sans token, version minimale), broadcast.updated/deleted/expired.
-
+**Pas fait (à planifier)** : digests (position au classement, familles, admin), ranking.milestone, liste d'attente, penalty.ack_pending, presence.withdrawn / summary, pénalité automatique, invitation.expiring, security.new_device_login / sessions_revoked / password_reset_by_admin et l'envoi d'email de sécurité, préférences par type, heures calmes, deep links normalisés, collapse key FCM, outbox avec reprise, alertes système (échecs FCM, sans token, version minimale), broadcast.updated/deleted/expired, seuil de suspension.

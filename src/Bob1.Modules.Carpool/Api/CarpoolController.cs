@@ -130,6 +130,9 @@ internal sealed class CarpoolController(CarpoolDbContext db, ICurrentUser user, 
                 await notifications.SendToPersonAsync(ride.DriverUserId, "Nouvelle réservation",
                     $"{name} a réservé une place ({ride.SeatsLeft} restante(s)).",
                     new Dictionary<string, string> { ["type"] = "ride_booked", ["matchId"] = ride.MatchId.ToString(), ["rideId"] = ride.Id.ToString() }, ct);
+                if (ride.SeatsLeft == 0)
+                    await notifications.SendToPersonAsync(ride.DriverUserId, "Trajet complet", "Toutes les places de votre trajet sont réservées.",
+                        new Dictionary<string, string> { ["type"] = "ride_full", ["matchId"] = ride.MatchId.ToString(), ["rideId"] = ride.Id.ToString() }, ct, push: false);
                 return NoContent();
             }
             catch (DbUpdateConcurrencyException) { db.ChangeTracker.Clear(); }   // someone else booked first: re-check seats

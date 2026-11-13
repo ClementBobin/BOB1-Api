@@ -23,7 +23,7 @@ internal sealed record TeamRef(Guid Id, string Name);
 [Authorize(Policy = Policies.Admin)]
 [Tags("People (admin)")]
 internal sealed class PeopleAdminController(IdentityDbContext db, IClubApi club, MembershipService memberships, IPasswordHasher<Domain.User> hasher, ICurrentUser me, TimeProvider clock,
-    PeopleNotices notices)
+    PeopleNotices notices, IDomainEventDispatcher events, ILogger<PeopleAdminController> log)
     : ApiControllerBase
 {
     [HttpQuery]
@@ -103,6 +103,7 @@ internal sealed class PeopleAdminController(IdentityDbContext db, IClubApi club,
 
         await memberships.SetCurrentAsync(user.Id, r.DivisionId, ct);   // division of the current season only
         await memberships.SetCurrentTeamsAsync(user.Id, r.TeamIds ?? [], ct);
+        await notices.UnassignedAsync(user.Id, ct);
         return Created($"/api/v1/admin/people/{user.Id}",
             new CreatePersonResponse(ToDto(user, r.DivisionId, r.TeamIds), temporaryPassword));
     }
@@ -131,6 +132,7 @@ internal sealed class PeopleAdminController(IdentityDbContext db, IClubApi club,
             return Error.NotFound("team.not_found", "One of the teams was not found.").ToProblem();
 
         var oldFamily = u.FamilyId;
+        var oldEmail = u.Email;
         var oldDivision = await CurrentDivisionAsync(u.Id, ct);
         var oldTeams = await CurrentTeamsAsync(u.Id, ct) ?? [];
 
@@ -143,6 +145,8 @@ internal sealed class PeopleAdminController(IdentityDbContext db, IClubApi club,
 
         var newTeams = await CurrentTeamsAsync(u.Id, ct) ?? [];
         await notices.ClubChangedAsync(u.Id, oldDivision, r.DivisionId, oldTeams, newTeams, ct);
+        await notices.UnassignedAsync(u.Id, ct);
+        if (oldEmail != u.Email) await notices.EmailChangedAsync(u.Id, ct);
         await notices.FamilyChangedAsync(u.Id, oldFamily, r.FamilyId, ct);
         return Ok(ToDto(u, r.DivisionId, newTeams));
     }
@@ -183,6 +187,8 @@ internal sealed class PeopleAdminController(IdentityDbContext db, IClubApi club,
         }
         await db.SaveChangesAsync(ct);
         if (wasActive != r.IsActive) await notices.ActiveChangedAsync(u.Id, r.IsActive, ct);
+        if (wasActive && !r.IsActive)
+            await Safe.RunAsync(log, "user deactivated", () => events.DispatchAsync([new Bob1.Shared.Contracts.Identity.UserDeactivated(u.Id)], ct));
         return NoContent();
     }
 

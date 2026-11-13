@@ -102,4 +102,23 @@ internal sealed class PeopleNotices(
         Safe.RunAsync(log, "password changed", () => notifications.SendToPersonAsync(userId, "Mot de passe modifié",
             "Votre mot de passe vient d'être modifié. Si ce n'est pas vous, contactez un administrateur.",
             Data("security_password_changed", userId), ct));
+
+    /// <summary>person.unassigned: a parent/player account with neither family nor division receives nothing; admins see it.</summary>
+    public Task UnassignedAsync(Guid userId, CancellationToken ct) =>
+        Safe.RunAsync(log, "unassigned", async () =>
+        {
+            var u = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == userId, ct);
+            if (u is null || u.FamilyId is not null || !u.Roles.HasFlag(UserRoles.Parent)) return;
+            var hasMembership = await db.Memberships.AsNoTracking().AnyAsync(m => m.UserId == userId, ct);
+            if (hasMembership) return;
+            await notifications.NotifyAdminsAsync("Compte non rattaché",
+                $"{u.FirstName} {u.LastName} n'a ni famille ni division : cette personne ne recevra aucune notification.",
+                Data("person_unassigned", userId), Actor, ct);
+        });
+
+    /// <summary>security.email_changed: the person is told their sign-in address changed (no email channel yet).</summary>
+    public Task EmailChangedAsync(Guid userId, CancellationToken ct) =>
+        Safe.RunAsync(log, "email changed", () => notifications.SendToPersonAsync(userId, "Adresse email modifiée",
+            "L'adresse email de votre compte vient d'être modifiée par un administrateur. Si ce n'est pas attendu, contactez-le.",
+            Data("security_email_changed", userId), ct));
 }

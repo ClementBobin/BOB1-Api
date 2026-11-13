@@ -33,7 +33,11 @@ internal sealed class SeasonService(IServiceScopeFactory scopes, TimeProvider cl
                     var identity = scope.ServiceProvider.GetRequiredService<Bob1.Shared.Contracts.Identity.IIdentityApi>();
                     var notifications = scope.ServiceProvider.GetRequiredService<Bob1.Shared.Contracts.Notifications.INotificationsApi>();
                     var label = Season.Current(clock);
-                    await notifications.SendToUsersAsync(await identity.GetUserIdsByDivisionAsync(null, stoppingToken),
+                    var everyone = await identity.GetUserIdsByDivisionAsync(null, stoppingToken);
+                    await notifications.SendToUsersAsync(everyone, "Fin de saison",
+                        $"La saison {Season.Previous(label)} est terminée : le classement repart de zéro et son historique reste consultable.",
+                        new Dictionary<string, string> { ["type"] = "season_ended", ["season"] = Season.Previous(label) }, stoppingToken);
+                    await notifications.SendToUsersAsync(everyone,
                         "Nouvelle saison", $"La saison {label} commence. Les divisions et équipes sont reconduites : vérifiez les vôtres.",
                         new Dictionary<string, string> { ["type"] = "season_started", ["season"] = label }, stoppingToken);
                 }

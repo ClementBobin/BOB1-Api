@@ -15,6 +15,25 @@ internal sealed class NotificationsApi(
         await SendToUsersAsync([personId], title, body, data, ct, expiresAtUtc, recurring, startup, push);
     }
 
+    public async Task<int> SendToUsersOnceAsync(string dedupeKey, IEnumerable<Guid> userIds, string title, string body,
+        IReadOnlyDictionary<string, string>? data = null, CancellationToken ct = default,
+        DateTime? expiresAtUtc = null, bool push = true)
+    {
+        var ids = userIds.Distinct().ToList();
+        if (ids.Count == 0) return 0;
+
+        // The key travels in the notification's data, so "already sent" is a lookup there (no extra table).
+        var payload = new Dictionary<string, string>(data ?? new Dictionary<string, string>()) { ["dedupe"] = dedupeKey };
+        var marker = $"\"dedupe\":{JsonSerializer.Serialize(dedupeKey)}";
+        var already = await db.Notifications.Where(n => ids.Contains(n.UserId) && n.DataJson != null && n.DataJson.Contains(marker))
+            .Select(n => n.UserId).Distinct().ToListAsync(ct);
+        var targets = ids.Except(already).ToList();
+        if (targets.Count == 0) return 0;
+
+        await SendToUsersAsync(targets, title, body, payload, ct, expiresAtUtc, push: push);
+        return targets.Count;
+    }
+
     public async Task NotifyAdminsAsync(string title, string body, IReadOnlyDictionary<string, string>? data = null,
         Guid? exceptUserId = null, CancellationToken ct = default)
     {

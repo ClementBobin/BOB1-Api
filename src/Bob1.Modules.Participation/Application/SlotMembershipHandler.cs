@@ -44,6 +44,25 @@ internal sealed class SlotMembershipHandler(
             await events.DispatchAsync(slot.DomainEvents, ct);
             slot.ClearDomainEvents();
 
+            // slot.full: the admins see that the slot is now filled (in-app); slot.conflict: another slot close in time.
+            await Safe.RunAsync(log, "slot full / conflict", async () =>
+            {
+                var data = new Dictionary<string, string> { ["type"] = "slot_full", ["matchId"] = slot.MatchId.ToString(), ["slotId"] = slot.Id.ToString() };
+                if (slot.Filled >= slot.Capacity)
+                    await notifications.NotifyAdminsAsync("Poste pourvu", $"« {slot.Role} » sur {match?.Title ?? "le match"} est complet.", data, user.UserId, ct);
+
+                if (match is null) return;
+                var otherMatchIds = await db.SlotSignups.AsNoTracking()
+                    .Where(x => x.UserId == user.UserId && x.SlotId != slot.Id)
+                    .Join(db.Slots, x => x.SlotId, s => s.Id, (_, s) => s.MatchId)
+                    .Where(id => id != slot.MatchId).Distinct().ToListAsync(ct);
+                var others = await matches.GetManyAsync(otherMatchIds, ct);
+                if (others.Values.Any(o => Math.Abs((o.StartsAtUtc - match.StartsAtUtc).TotalHours) < 2))
+                    await notifications.SendToPersonAsync(user.UserId, "Postes qui se chevauchent",
+                        $"Vous êtes déjà inscrit sur un autre match proche de {match.Title} ({Dates.Label(match.StartsAtUtc)}).",
+                        new Dictionary<string, string> { ["type"] = "slot_conflict", ["matchId"] = slot.MatchId.ToString() }, ct, push: false);
+            });
+
             // In-app receipt for the person who signed up.
             await Safe.RunAsync(log, "slot join receipt", () => notifications.SendToPersonAsync(user.UserId, "Inscription enregistrée",
                 $"Vous êtes inscrit comme {slot.Role} sur {match?.Title ?? "le match"}.",
