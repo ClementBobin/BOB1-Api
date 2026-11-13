@@ -10,7 +10,7 @@ internal sealed record ChangePasswordRequest(string CurrentPassword, string NewP
 [Route(ApiRoutes.V1 + "/me")]
 [Authorize]
 [Tags("Me")]
-internal sealed class MeController(IdentityDbContext db, IPasswordHasher<Domain.User> hasher, ICurrentUser user, TimeProvider clock)
+internal sealed class MeController(IdentityDbContext db, IPasswordHasher<Domain.User> hasher, ICurrentUser user, TimeProvider clock, PeopleNotices notices)
     : ApiControllerBase
 {
     [HttpGet]
@@ -51,6 +51,7 @@ internal sealed class MeController(IdentityDbContext db, IPasswordHasher<Domain.
         foreach (var t in tokens) t.Revoke(now);
 
         await db.SaveChangesAsync(ct);
+        await notices.PasswordChangedAsync(u.Id, ct);
         return NoContent();
     }
 }

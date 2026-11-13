@@ -26,6 +26,7 @@ public sealed class NotificationsModule : IModule
         }
 
         services.AddScoped<INotificationsApi, NotificationsApi>();
+        services.AddScoped<IDomainEventHandler<Bob1.Shared.Contracts.Matches.MatchCreated>, MatchCreatedHandler>();
     }
 
     public async Task InitializeAsync(IServiceProvider services) =>

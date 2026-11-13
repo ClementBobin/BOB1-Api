@@ -10,6 +10,8 @@ public sealed class CarpoolModule : IModule
             configuration.GetConnectionString("Default"),
             npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory_Carpool")));
         services.AddScoped<ICarpoolApi, CarpoolApi>();
+        services.AddScoped<IDomainEventHandler<Bob1.Shared.Contracts.Matches.MatchCancelled>, MatchCancelledRidesHandler>();
+        services.AddScoped<IDomainEventHandler<Bob1.Shared.Contracts.Matches.MatchRescheduled>, MatchRescheduledRidesHandler>();
     }
 
     public async Task InitializeAsync(IServiceProvider services) =>

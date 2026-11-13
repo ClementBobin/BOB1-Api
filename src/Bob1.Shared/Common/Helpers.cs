@@ -33,6 +33,16 @@ public static class Dates
     };
 
     public static DateTime? ToUtc(DateTime? value) => value is null ? null : ToUtc(value.Value);
+
+    private static readonly Lazy<TimeZoneInfo> Paris = new(() =>
+    {
+        try { return TimeZoneInfo.FindSystemTimeZoneById("Europe/Paris"); }
+        catch (TimeZoneNotFoundException) { return TimeZoneInfo.Utc; }
+    });
+
+    /// <summary>"13/11 à 18h30" in the club's local time, for notification texts.</summary>
+    public static string Label(DateTime utc) =>
+        TimeZoneInfo.ConvertTimeFromUtc(ToUtc(utc), Paris.Value).ToString("dd/MM 'à' HH'h'mm");
 }
 
 /// <summary>

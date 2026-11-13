@@ -10,14 +10,21 @@ internal sealed class NotificationsApi(
 {
     public async Task SendToPersonAsync(Guid personId, string title, string body,
         IReadOnlyDictionary<string, string>? data = null, CancellationToken ct = default,
-        DateTime? expiresAtUtc = null, bool recurring = false, bool startup = false)
+        DateTime? expiresAtUtc = null, bool recurring = false, bool startup = false, bool push = true)
     {
-        await SendToUsersAsync([personId], title, body, data, ct, expiresAtUtc, recurring, startup);
+        await SendToUsersAsync([personId], title, body, data, ct, expiresAtUtc, recurring, startup, push);
+    }
+
+    public async Task NotifyAdminsAsync(string title, string body, IReadOnlyDictionary<string, string>? data = null,
+        Guid? exceptUserId = null, CancellationToken ct = default)
+    {
+        var admins = (await identity.GetUserIdsByRoleAsync("Admin", ct)).Where(id => id != exceptUserId).ToList();
+        await SendToUsersAsync(admins, title, body, data, ct, push: false);
     }
 
     public async Task SendToUsersAsync(IEnumerable<Guid> userIds, string title, string body,
         IReadOnlyDictionary<string, string>? data = null, CancellationToken ct = default,
-        DateTime? expiresAtUtc = null, bool recurring = false, bool startup = false)
+        DateTime? expiresAtUtc = null, bool recurring = false, bool startup = false, bool push = true)
     {
         var ids = userIds.Distinct().ToList();
         if (ids.Count == 0) return;
@@ -26,6 +33,8 @@ internal sealed class NotificationsApi(
         var dataJson = data is null ? null : JsonSerializer.Serialize(data);
         db.Notifications.AddRange(ids.Select(id => UserNotification.Create(id, title, body, dataJson, now, expiresAtUtc, recurring, startup)));
         await db.SaveChangesAsync(ct);
+
+        if (!push) return;
 
         // Push is best-effort: a Firebase outage must never break the action that triggered the notification.
         try

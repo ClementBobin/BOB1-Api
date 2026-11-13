@@ -10,7 +10,7 @@ internal sealed record NotificationQuery(string? Search, string? Type, bool? Rea
 [Route(ApiRoutes.V1 + "/admin/notifications")]
 [Authorize(Policy = Policies.Admin)]
 [Tags("Notifications (admin)")]
-internal sealed class NotificationsAdminController(NotificationsDbContext db) : ApiControllerBase
+internal sealed class NotificationsAdminController(NotificationsDbContext db, ICurrentUser actor) : ApiControllerBase
 {
     // ---- Broadcast ----
     [HttpPost]
@@ -20,9 +20,16 @@ internal sealed class NotificationsAdminController(NotificationsDbContext db) : 
         if (Guard.First(Guard.NotBlank(r.Title, "title", 200), Guard.NotBlank(r.Body, "body", 1000)) is { } err)
             return err.ToProblem();
 
-        var recipients = await identity.GetUserIdsByDivisionAsync(r.DivisionId, ct);
-        await notifications.SendToUsersAsync(recipients, r.Title.Trim(), r.Body.Trim(),
-            new Dictionary<string, string> { ["type"] = "broadcast" }, ct, r.ExpiresAtUtc, r.Recurring, r.Startup);
+        // A team targets its players (and families); otherwise the division; otherwise everyone.
+        var recipients = r.TeamId is { } teamId
+            ? await identity.GetUserIdsByTeamsAsync([teamId], ct)
+            : await identity.GetUserIdsByDivisionAsync(r.DivisionId, ct);
+        var data = new Dictionary<string, string> { ["type"] = "broadcast" };
+        await notifications.SendToUsersAsync(recipients, r.Title.Trim(), r.Body.Trim(), data, ct, r.ExpiresAtUtc, r.Recurring, r.Startup);
+
+        // Admins who are not among the recipients get an in-app copy so they see what went out.
+        var admins = (await identity.GetUserIdsByRoleAsync("Admin", ct)).Except(recipients).Where(id => id != actor.UserId).ToList();
+        await notifications.SendToUsersAsync(admins, "[Copie] " + r.Title.Trim(), r.Body.Trim(), data, ct, r.ExpiresAtUtc, push: false);
         return Ok(new { recipients = recipients.Count });
     }
 

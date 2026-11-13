@@ -15,6 +15,7 @@ public sealed class ParticipationModule : IModule
 
         // Reacts to Matches' event (Participation depends on Matches, never the reverse).
         services.AddScoped<IDomainEventHandler<MatchCancelled>, MatchCancelledHandler>();
+        services.AddScoped<IDomainEventHandler<MatchRescheduled>, MatchRescheduledHandler>();
         services.AddHostedService<PresenceReminderService>();
     }
 

@@ -22,7 +22,8 @@ internal sealed record TeamRef(Guid Id, string Name);
 [Route(ApiRoutes.V1 + "/admin/people")]
 [Authorize(Policy = Policies.Admin)]
 [Tags("People (admin)")]
-internal sealed class PeopleAdminController(IdentityDbContext db, IClubApi club, MembershipService memberships, IPasswordHasher<Domain.User> hasher, ICurrentUser me, TimeProvider clock)
+internal sealed class PeopleAdminController(IdentityDbContext db, IClubApi club, MembershipService memberships, IPasswordHasher<Domain.User> hasher, ICurrentUser me, TimeProvider clock,
+    PeopleNotices notices)
     : ApiControllerBase
 {
     [HttpQuery]
@@ -129,13 +130,21 @@ internal sealed class PeopleAdminController(IdentityDbContext db, IClubApi club,
         if (r.TeamIds is { Length: > 0 } teamIds && (await club.GetTeamNamesAsync(teamIds, ct)).Count != teamIds.Distinct().Count())
             return Error.NotFound("team.not_found", "One of the teams was not found.").ToProblem();
 
+        var oldFamily = u.FamilyId;
+        var oldDivision = await CurrentDivisionAsync(u.Id, ct);
+        var oldTeams = await CurrentTeamsAsync(u.Id, ct) ?? [];
+
         u.SetName(r.FirstName.Trim(), r.LastName.Trim());
         u.SetEmail(email);
         u.SetFamilyId(r.FamilyId);
         await db.SaveChangesAsync(ct);
         await memberships.SetCurrentAsync(u.Id, r.DivisionId, ct);   // only the current season changes: history is kept
         if (r.TeamIds is not null) await memberships.SetCurrentTeamsAsync(u.Id, r.TeamIds, ct);
-        return Ok(ToDto(u, r.DivisionId, await CurrentTeamsAsync(u.Id, ct)));
+
+        var newTeams = await CurrentTeamsAsync(u.Id, ct) ?? [];
+        await notices.ClubChangedAsync(u.Id, oldDivision, r.DivisionId, oldTeams, newTeams, ct);
+        await notices.FamilyChangedAsync(u.Id, oldFamily, r.FamilyId, ct);
+        return Ok(ToDto(u, r.DivisionId, newTeams));
     }
 
     [HttpPut("{id:guid}/roles")]
@@ -148,8 +157,10 @@ internal sealed class PeopleAdminController(IdentityDbContext db, IClubApi club,
 
         var u = await db.Users.SingleOrDefaultAsync(x => x.Id == id, ct);
         if (u is null) return Error.NotFound("user.not_found", "User not found.").ToProblem();
+        var oldRoles = u.Roles;
         u.SetRoles(roles);
         await db.SaveChangesAsync(ct);
+        await notices.RolesChangedAsync(u.Id, oldRoles, roles, ct);
         return Ok(ToDto(u, await CurrentDivisionAsync(u.Id, ct), await CurrentTeamsAsync(u.Id, ct)));
     }
 
@@ -161,6 +172,7 @@ internal sealed class PeopleAdminController(IdentityDbContext db, IClubApi club,
 
         var u = await db.Users.SingleOrDefaultAsync(x => x.Id == id, ct);
         if (u is null) return Error.NotFound("user.not_found", "User not found.").ToProblem();
+        var wasActive = u.IsActive;
         u.SetActive(r.IsActive);
 
         if (!r.IsActive)
@@ -170,6 +182,7 @@ internal sealed class PeopleAdminController(IdentityDbContext db, IClubApi club,
                 t.Revoke(now);
         }
         await db.SaveChangesAsync(ct);
+        if (wasActive != r.IsActive) await notices.ActiveChangedAsync(u.Id, r.IsActive, ct);
         return NoContent();
     }
 
@@ -179,8 +192,10 @@ internal sealed class PeopleAdminController(IdentityDbContext db, IClubApi club,
     {
         var u = await db.Users.SingleOrDefaultAsync(x => x.Id == id, ct);
         if (u is null) return Error.NotFound("user.not_found", "User not found.").ToProblem();
+        var wasSuspended = u.SuspendedFromParticipation;
         u.SetSuspendedFromParticipation(r.IsActive);
         await db.SaveChangesAsync(ct);
+        if (wasSuspended != r.IsActive) await notices.ParticipationChangedAsync(u.Id, r.IsActive, ct);
         return NoContent();
     }
 

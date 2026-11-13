@@ -1,4 +1,5 @@
 using Bob1.Shared.Contracts.Club;
+using Bob1.Shared.Contracts.Matches;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -19,7 +20,10 @@ internal sealed class MatchesAdminController(MatchesDbContext db, IClubApi club,
         var m = Match.Create(r.DivisionId, r.HomeTeamId, r.AwayTeamId, r.VenueId, Dates.ToUtc(r.StartsAtUtc));
         db.Matches.Add(m);
         await db.SaveChangesAsync(ct);
-        return Created($"/api/v1/matches/{m.Id}", await m.ToDtoAsync(club, ct));
+
+        var labels = await MatchLabels.LoadAsync(club, [m], ct);
+        await events.DispatchAsync([new MatchCreated(m.Id, labels.Title(m), m.DivisionId, m.HomeTeamId, m.AwayTeamId, m.VenueId, m.StartsAtUtc)], ct);
+        return Created($"/api/v1/matches/{m.Id}", m.ToDto(labels));
     }
 
     [HttpPut("{matchId:guid}")]
@@ -31,11 +35,16 @@ internal sealed class MatchesAdminController(MatchesDbContext db, IClubApi club,
 
         if (await ValidateAsync(r, ct) is { } invalid) return invalid.ToProblem();
 
+        var (oldStart, oldVenue, oldHome, oldAway) = (m.StartsAtUtc, m.VenueId, m.HomeTeamId, m.AwayTeamId);
         var updated = m.Update(r.DivisionId, r.HomeTeamId, r.AwayTeamId, r.VenueId, Dates.ToUtc(r.StartsAtUtc));
         if (!updated.IsSuccess) return updated.Error.ToProblem();
-        // TODO: publish MatchRescheduled so Participation can notify registered families.
         await db.SaveChangesAsync(ct);
-        return Ok(await m.ToDtoAsync(club, ct));
+
+        var labels = await MatchLabels.LoadAsync(club, [m], ct);
+        if (oldStart != m.StartsAtUtc || oldVenue != m.VenueId || oldHome != m.HomeTeamId || oldAway != m.AwayTeamId)
+            await events.DispatchAsync([new MatchRescheduled(m.Id, labels.Title(m), oldStart, m.StartsAtUtc,
+                oldVenue, m.VenueId, oldHome, oldAway, m.HomeTeamId, m.AwayTeamId)], ct);
+        return Ok(m.ToDto(labels));
     }
 
     [HttpPost("{matchId:guid}/cancel")]
