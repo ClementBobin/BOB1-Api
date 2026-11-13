@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.7.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.6.0...v1.7.0) (2026-11-13)
+
+### ✨ Features
+
+* **notifications:** reminders, ride/slot/venue alerts, deactivation and season-end notices ([bd06a40](https://github.com/ClementBobin/BOB1-Api/commit/bd06a40a0dceb9cc08fc06f5cb80d742f0a6e5d1))
+
 ## [1.6.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.5.0...v1.6.0) (2026-11-13)
 
 ### ✨ Features
