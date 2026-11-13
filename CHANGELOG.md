@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.5.0...v1.6.0) (2026-11-13)
+
+### ✨ Features
+
+* Add migration files for MatchNoDivision across multiple modules ([97c57c4](https://github.com/ClementBobin/BOB1-Api/commit/97c57c4f1320bd4dccb2924b0e43119bd5b7beba))
+
 ## [1.5.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.4.0...v1.5.0) (2026-11-13)
 
 ### ✨ Features
