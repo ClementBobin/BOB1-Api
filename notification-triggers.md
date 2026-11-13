@@ -115,18 +115,17 @@ graph TD
     A --> I[Ranking Milestone]
 
     B --> B1[Recipients: All / Division / Team / Role]
-    B --> B2[Channel: Push + In-app + Email (optional)]
+    B --> B2[Channel: Push + In-app]
     B --> B3[Options: Recurring, Startup, Expiry, Priority]
 
     C --> C1[Recipients: Staff & Volunteers + Families with children registered]
-    C --> C2[Channel: Push + In-app + Email]
+    C --> C2[Channel: Push + In-app]
     C --> C3[Priority: High]
 
     D --> D1[Recipients: Users in families with pending child registrations]
     D --> D2[Channel: Push + In-app]
     D --> D3[Frequency: Every 15 minutes]
     D --> D4[Dedup: reminder_logs table]
-    D --> D5[Escalation: Email after 3 reminders]
 
     E --> E1[Recipients: Passengers who booked the ride]
     E --> E2[Channel: Push + In-app]
@@ -141,7 +140,7 @@ graph TD
     G --> G3[Trigger: When a slot becomes full or empty]
 
     H --> H1[Recipients: Division members + Staff]
-    H --> H2[Channel: Push + In-app + Email]
+    H --> H2[Channel: Push + In-app]
     H --> H3[Trigger: When a match is scheduled]
 
     I --> I1[Recipients: The family/person achieving milestone]
@@ -180,7 +179,6 @@ Match is created/scheduled
     → SendToUsersAsync(recipients, "Nouveau match", body, data)
       → Create UserNotification for each recipient
       → Push via FCM (best-effort)
-      → Email (optional, for important matches)
 ```
 
 ### 8. Ranking Milestone (NEW)
@@ -213,13 +211,15 @@ Points are awarded (PointsAwarded event)
 2. **No Slot Filled/Unfilled notifications** - would need to handle SlotJoined/SlotLeft events
 3. **No Match Scheduled notifications** - would need to handle MatchCreated event
 4. **No Ranking Milestone notifications** - would need to track point thresholds
-5. **Email channel** - not implemented (only push + in-app)
-6. **Team-based targeting** - currently resolves to division, not actual team members (teams don't have members in current model)
+5. **No email** - by decision, the app sends no email except account-security messages (password changed, new-device login, sessions revoked, email changed, password reset). Every other notification is Push + In-app only; the fallback for users without a push token is the in-app list.
+6. **Team-based targeting** - still resolves to division. Players now belong to teams per season (`team_memberships`, several teams per player), so `GetUserIdsByTeamAsync` can be built on them.
 
 ### Recommended Next Steps
 1. Add `IIdentityApi.GetUserIdsByTeamAsync` for proper team-based targeting
 2. Implement SlotFilled/SlotUnfilled event handlers
 3. Add MatchCreated event and handler
 4. Add point threshold tracking for ranking milestones
-5. Implement email channel (SendGrid/SMTP) for high-priority notifications
+5. Implement a minimal email sender restricted to account-security messages (SendGrid/SMTP); no email for any other notification type
+
+See `notification-candidates.md` for the extra triggers, the consolidated table (priority, key, type, recipients, channels) and the "no email except security" decision.
 6. Add notification preferences per user (opt-in/opt-out by type)
