@@ -7,7 +7,6 @@ internal sealed class Match : Entity
 {
     public Guid Id { get; private set; } = Guid.NewGuid();
     public string Season { get; private set; } = default!;   // derived from the start date ("2026-2027")
-    public Guid DivisionId { get; private set; }
     public Guid HomeTeamId { get; private set; }
     public Guid AwayTeamId { get; private set; }
     public Guid VenueId { get; private set; }
@@ -16,19 +15,19 @@ internal sealed class Match : Entity
 
     private Match() { }
 
-    public static Match Create(Guid divisionId, Guid homeTeamId, Guid awayTeamId, Guid venueId,
+    public static Match Create(Guid homeTeamId, Guid awayTeamId, Guid venueId,
         DateTime startsAtUtc, Guid? id = null)
     {
         var m = new Match { Id = id ?? Guid.NewGuid() };
-        m.Apply(divisionId, homeTeamId, awayTeamId, venueId, startsAtUtc);
+        m.Apply(homeTeamId, awayTeamId, venueId, startsAtUtc);
         return m;
     }
 
-    public Result Update(Guid divisionId, Guid homeTeamId, Guid awayTeamId, Guid venueId, DateTime startsAtUtc)
+    public Result Update(Guid homeTeamId, Guid awayTeamId, Guid venueId, DateTime startsAtUtc)
     {
         if (Status != MatchStatus.Scheduled)
             return Error.Conflict("match.not_editable", "Only scheduled matches can be edited.");
-        Apply(divisionId, homeTeamId, awayTeamId, venueId, startsAtUtc);
+        Apply(homeTeamId, awayTeamId, venueId, startsAtUtc);
         return Result.Success();
     }
 
@@ -50,9 +49,9 @@ internal sealed class Match : Entity
         return Result.Success();
     }
 
-    private void Apply(Guid divisionId, Guid homeTeamId, Guid awayTeamId, Guid venueId, DateTime startsAtUtc)
+    private void Apply(Guid homeTeamId, Guid awayTeamId, Guid venueId, DateTime startsAtUtc)
     {
-        DivisionId = divisionId; HomeTeamId = homeTeamId; AwayTeamId = awayTeamId;
+        HomeTeamId = homeTeamId; AwayTeamId = awayTeamId;
         VenueId = venueId; StartsAtUtc = startsAtUtc;
         Season = Bob1.Shared.Season.For(startsAtUtc);
     }

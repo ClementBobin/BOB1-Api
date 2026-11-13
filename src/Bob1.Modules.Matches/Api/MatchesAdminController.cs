@@ -16,7 +16,7 @@ internal sealed class MatchesAdminController(MatchesDbContext db, IClubApi club,
     {
         if (await ValidateAsync(r, ct) is { } invalid) return invalid.ToProblem();
 
-        var m = Match.Create(r.DivisionId, r.HomeTeamId, r.AwayTeamId, r.VenueId, Dates.ToUtc(r.StartsAtUtc));
+        var m = Match.Create(r.HomeTeamId, r.AwayTeamId, r.VenueId, Dates.ToUtc(r.StartsAtUtc));
         db.Matches.Add(m);
         await db.SaveChangesAsync(ct);
         return Created($"/api/v1/matches/{m.Id}", await m.ToDtoAsync(club, ct));
@@ -31,7 +31,7 @@ internal sealed class MatchesAdminController(MatchesDbContext db, IClubApi club,
 
         if (await ValidateAsync(r, ct) is { } invalid) return invalid.ToProblem();
 
-        var updated = m.Update(r.DivisionId, r.HomeTeamId, r.AwayTeamId, r.VenueId, Dates.ToUtc(r.StartsAtUtc));
+        var updated = m.Update(r.HomeTeamId, r.AwayTeamId, r.VenueId, Dates.ToUtc(r.StartsAtUtc));
         if (!updated.IsSuccess) return updated.Error.ToProblem();
         // TODO: publish MatchRescheduled so Participation can notify registered families.
         await db.SaveChangesAsync(ct);
@@ -79,8 +79,6 @@ internal sealed class MatchesAdminController(MatchesDbContext db, IClubApi club,
             return Error.Validation("starts_at.out_of_season",
                 $"The match must fall inside the current season ({Season.StartsOn(Season.Current(clock)):dd/MM/yyyy} – {Season.EndsOn(Season.Current(clock)):dd/MM/yyyy}).");
 
-        if (await club.GetDivisionAsync(r.DivisionId, ct) is null)
-            return Error.NotFound("division.not_found", "Division not found.");
         var teams = await club.GetTeamNamesAsync([r.HomeTeamId, r.AwayTeamId], ct);
         if (!teams.ContainsKey(r.HomeTeamId)) return Error.NotFound("team.not_found", "Home team not found.");
         if (!teams.ContainsKey(r.AwayTeamId)) return Error.NotFound("team.not_found", "Away team not found.");
