@@ -207,9 +207,9 @@ Points are awarded (PointsAwarded event)
 ## Implementation Notes
 
 ### Current Gaps
-1. **MatchCancelledHandler** currently skips family notifications (needs IIdentityApi to resolve family→users)
-2. **No Slot Filled/Unfilled notifications** - would need to handle SlotJoined/SlotLeft events
-3. **No Match Scheduled notifications** - would need to handle MatchCreated event
+1. ~~MatchCancelledHandler skips family notifications~~ - fixed (see `notification-candidates.md`, "État d'implémentation")
+2. **Slot Filled/Unfilled** - slot created/updated/deleted and late withdrawal are done; "full / unfilled" admin info is not
+3. ~~No Match Scheduled notifications~~ - done (`MatchCreated` event + handler)
 4. **No Ranking Milestone notifications** - would need to track point thresholds
 5. **No email** - by decision, the app sends no email except account-security messages (password changed, new-device login, sessions revoked, email changed, password reset). Every other notification is Push + In-app only; the fallback for users without a push token is the in-app list.
 6. **Team-based targeting** - still resolves to division. Players now belong to teams per season (`team_memberships`, several teams per player), so `GetUserIdsByTeamAsync` can be built on them.

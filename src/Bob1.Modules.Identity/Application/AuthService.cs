@@ -14,7 +14,8 @@ internal static class UserMapping
     public static UserDto ToDto(this User u) => new(u.Id, u.Email, u.FirstName, u.LastName, u.Roles.ToNames(), u.FamilyId);
 }
 
-internal sealed class AuthService(IdentityDbContext db, IPasswordHasher<User> hasher, TokenService tokens, TimeProvider clock)
+internal sealed class AuthService(IdentityDbContext db, IPasswordHasher<User> hasher, TokenService tokens, TimeProvider clock,
+    Bob1.Shared.Contracts.Notifications.INotificationsApi notifications, ILogger<AuthService> log)
 {
     private static readonly Error InvalidCredentials =
         Error.Unauthorized("auth.invalid_credentials", "Invalid email or password.");
@@ -37,6 +38,7 @@ internal sealed class AuthService(IdentityDbContext db, IPasswordHasher<User> ha
             return Error.Conflict("email.taken", "An account with this email already exists.");
 
         Guid familyId;
+        var joinedExistingFamily = false;
         if (!string.IsNullOrWhiteSpace(r.InvitationCode))
         {
             var code = r.InvitationCode.Trim().ToUpperInvariant();
@@ -45,6 +47,7 @@ internal sealed class AuthService(IdentityDbContext db, IPasswordHasher<User> ha
                 return Error.Validation("invitation.invalid", "This invitation code is invalid or expired.");
             invitation.MarkUsed(Now);
             familyId = invitation.FamilyId;
+            joinedExistingFamily = true;
         }
         else
         {
@@ -60,7 +63,19 @@ internal sealed class AuthService(IdentityDbContext db, IPasswordHasher<User> ha
 
         try
         {
-            return await IssueAsync(user, ct);
+            var issued = await IssueAsync(user, ct);
+
+            // A new member joined through an invitation: the existing members of the family are told (in-app).
+            if (joinedExistingFamily && issued.IsSuccess)
+                await Safe.RunAsync(log, "family member joined", async () =>
+                {
+                    var members = await db.Users.AsNoTracking().Where(u => u.FamilyId == familyId && u.IsActive && u.Id != user.Id)
+                        .Select(u => u.Id).ToListAsync(ct);
+                    await notifications.SendToUsersAsync(members, "Nouveau membre dans la famille",
+                        $"{user.FirstName} {user.LastName} a rejoint votre famille.",
+                        new Dictionary<string, string> { ["type"] = "family_member_joined", ["personId"] = user.Id.ToString() }, ct, push: false);
+                });
+            return issued;
         }
         catch (DbUpdateException ex) when (ex.IsUniqueViolation()) // UNIQUE / PRIMARY KEY
         {
