@@ -1,7 +1,47 @@
 services:
-  BOB1-Api:
-    build: .
-    ports:
-      - "8080:8080"
+  bob1-api:
+    image: ghcr.io/clementbobin/bob1-api:latest
+    container_name: bob1-api
+    restart: unless-stopped
+    env_file: .env
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=bob1;Username=bob1;Password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      Database__MigrateOnStartup: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - 8080:8080
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: bob1-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bob1
+      POSTGRES_USER: bob1
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - bob1-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bob1 -d bob1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  bob1-pgdata:

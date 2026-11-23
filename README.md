@@ -1,0 +1,128 @@
+# Bob1 API: modular monolith (.NET 10)
+
+One ASP.NET Core API, one PostgreSQL database (one set of tables per module), strict module boundaries.
+
+## Run
+```bash
+dotnet tool install --global dotnet-ef    # once
+
+# PostgreSQL for development (matches the connection string in appsettings.json)
+docker run -d --name bob1-pg -p 5432:5432 -e POSTGRES_DB=bob1 -e POSTGRES_USER=bob1 -e POSTGRES_PASSWORD=bob1 postgres:17-alpine
+
+# Create the first migration of every module (bash / PowerShell)
+./scripts/migrations.sh Initial
+./scripts/migrations.ps1 Initial
+
+dotnet run --project src/Bob1.Api         # Development: applies migrations, seeds data, listens on :5000
+```
+The database is PostgreSQL. The connection string is `ConnectionStrings:Default`
+(default: `Host=localhost;Port=5432;Database=bob1;Username=bob1;Password=bob1`); in production set it through
+`ConnectionStrings__Default`. `docker-compose.yml` starts the API together with a Postgres 17 container
+(set `POSTGRES_PASSWORD` in `.env`).
+
+Dev accounts: `parent@bob1.local / Parent123!`, `staff@bob1.local / Staff123!`, `admin@bob1.local / Admin123!`.
+Try the API with `requests.http` (VS Code REST Client / Rider / Visual Studio). OpenAPI: `/openapi/v1.json`.
+
+Changed an entity? `./scripts/migrations.sh <Name>`. Early on, the simplest reset is:
+drop and recreate the `bob1` database, delete every module's `Infrastructure/Migrations/` folder, recreate `Initial`.
+
+## Seasons
+
+A season runs 1 Sept → 31 Aug (label `2026-2027`); the current one is derived from today's date and its row is created automatically (Club `seasons` table).
+- `Membership(UserId, Season, DivisionId)` replaces `User.DivisionId`; a new season starts as a copy of the previous one, edits only touch the current season.
+- Matches carry a stored `Season` and must fall in the current season; matches and manual points of past seasons are read-only.
+- `QUERY /seasons`, `QUERY /admin/seasons/overview`, `season` filter on matches / people / rankings / points-history, `QUERY /admin/people/{id}/memberships` (Parcours).
+- Schema of Club, Identity and Matches changed.
+
+## Solution layout
+```
+src/
+├── Bob1.Api/                    # Host (Program.cs, appsettings, CurrentUser) - the only project that references every module
+├── Bob1.Shared/                 # Cross-cutting, no business logic
+│   ├── Events/                  # IDomainEvent, handler + dispatcher
+│   ├── Modules/                 # IModule
+│   ├── Contracts/<Module>/      # What a module offers the others: *Api interfaces, info records, integration events, seed ids
+│   ├── Common/                  # Result/Error, Guard, Dates, Entity
+│   ├── Security/                # ICurrentUser, Policies, JwtOptions
+│   └── Web/                     # ApiControllerBase, ProblemDetails mapping, MVC registration
+└── Bob1.Modules.<Name>/         # One class library per module; references Bob1.Shared only
+    ├── <Name>Module.cs          # DI registration, migrations + dev seed
+    ├── Domain/                  # Entities (internal)
+    ├── Application/             # Services, handlers, event handlers, implementation of the module's *Api contract
+    ├── Infrastructure/          # <Name>DbContext, Migrations/, external services (FCM, JWT...)
+    └── Api/                     # MVC controllers + request/response records
+```
+Modules never reference each other. They talk through `Bob1.Shared/Contracts/<Module>` (interface + DTOs, resolved by DI
+at runtime) or domain events. Each module owns one DbContext, its own `__EFMigrationsHistory_<Module>` table, and never
+queries another module's tables (isolation is by DbContext and table ownership, all in the same database).
+
+## Modules and their dependencies
+```
+Club ◄── Identity ◄── Notifications ◄──┐
+  ▲          ▲                         │
+  └─ Matches ┤                         │
+        ▲    └─ Carpool ───────────────┤
+        │          ▲                   │
+        └──── Participation ───────────┤
+                   ▲                   │
+                   └──────── Ranking ──┘   (arrows = "depends on", never circular)
+```
+| Module | Owns |
+|---|---|
+| Club | divisions, teams, venues |
+| Identity | users (parents and children share the table; a child user has a division and teams per season), families, JWT + refresh tokens, family invitations |
+| Matches | calendar, match admin (home/away teams), cancel, mark played |
+| Carpool | rides, bookings (seat contention handled with an optimistic concurrency token) |
+| Participation | presence confirmation, volunteer/staff slots, commitments, J-4 reminder job |
+| Notifications | FCM device tokens, in-app notification list, push (Firebase), admin broadcast |
+| Ranking | points ledger, scoring rules, leaderboard, penalties |
+
+Rules: a module exposes only its `*Module` class; everything else is `internal`. What other modules may use lives in `Bob1.Shared/Contracts/<Module>`.
+HTTP endpoints are MVC controllers (`Features/*Controller.cs`, deriving from `ApiControllerBase`). They stay `internal` too:
+`AddModuleControllers` (SharedKernel) registers each module assembly and a feature provider that accepts internal controllers.
+Modules never touch each other's tables: they call `Public` interfaces or react to domain events
+(`PresenceConfirmed`, `SlotJoined/Left`, `RideOffered/Cancelled`, `MatchCancelled`).
+
+## Endpoints (`/api/v1`)
+**Auth**: `POST /auth/register | login | refresh | logout`
+**Me**: `GET/PUT /me`, `PUT /me/password`, `POST/DELETE /me/push-tokens`, `QUERY /me/commitments`
+**Family** (Parent): `GET /family` (members, children included), `POST /family/invitations`
+**Club**: `QUERY /divisions | /teams | /venues` (body: `search`, `isActive`, `divisionId`, `skip`, `take`)
+**List endpoints use the HTTP `QUERY` method** (safe + idempotent, criteria in a JSON body). Paginated ones answer `{ "total": n, "items": [...] }`; send `skip`/`take`.
+
+**Matches**: `QUERY /matches` (body: `memberId` (matches of the teams that player is in), `from`, `to`, `status`, `search`, `season`, `skip`, `take`), `GET /matches/{id}`, `GET /matches/{id}/participation`
+**Participation** (Parent): `POST /matches/{id}/presence/confirm`; any role: `POST/DELETE /slots/{id}/join`
+**Carpool**: `QUERY/POST /matches/{id}/rides`, `PUT/DELETE /rides/{id}`, `POST/DELETE /rides/{id}/booking`
+**Staff**: `QUERY /staff/open-slots`, `QUERY /staff/assignments`
+**Ranking**: `QUERY /rankings` (body: `category`, `season`, `view`, `search`, `skip`, `take`), `QUERY /rankings/me/entries`, `QUERY /ranking-rules`
+**Notifications**: `QUERY /notifications`, `GET /notifications/unread-count`, `POST /notifications/{id}/read`, `POST /notifications/read-all`
+**Admin**: `/admin/people` (list, roles, active), `/admin/divisions | teams | venues` (CRUD), `/admin/matches` (create, update, cancel, played),
+`/admin/matches/{id}/slots` + `/admin/slots/{id}` + `/admin/slots/urgent`, `/admin/matches/{id}/participation` (roster),
+`/admin/ranking-rules/{key}`, `/admin/rankings`, `/admin/penalties` (+ `/quick`; there is no penalty category: negative points in a regular category), `/admin/points-history`, `PUT /admin/points/{id}` and `POST /admin/points/{id}/revoke` (manual rows only), `/admin/notifications` (broadcast)
+
+Errors are ProblemDetails with a stable `code` (e.g. `slot.full`, `ride.full`, `match.already_started`, `auth.invalid_credentials`).
+
+## Push notifications (Firebase)
+Set `Firebase:CredentialsPath` to your service-account JSON. Without it, pushes are only logged. With Docker, put the key in `secrets/firebase.json` and start with
+`docker compose -f docker-compose.yml -f docker-compose.firebase.yml up -d` (the base compose file works without it).
+The mobile app registers its FCM token with `POST /me/push-tokens`.
+
+## Not done yet (TODO)
+- 2FA (TOTP), password reset by email
+- Refuse deleting divisions/venues/teams still referenced by users/matches
+- Notify on match rescheduling; carpool/slot reminders for admins
+- Tests: architecture tests (NetArchTest) for the module boundaries, Testcontainers integration tests
+- Rate limiting on `/auth/*`, CORS if you add a web admin
+
+## PostgreSQL notes
+
+- Provider: `Npgsql.EntityFrameworkCore.PostgreSQL`. The old SQLite migrations were removed: every module's `Initial` migration must be regenerated (`./scripts/migrations.sh Initial`) against this provider.
+- Unique-constraint races are detected with SQLSTATE `23505` (`DbErrors.IsUniqueViolation`).
+- Text search uses `ILIKE` (Postgres `LIKE` is case-sensitive).
+- `Npgsql.EnableLegacyTimestampBehavior` is on (see `Program.cs`): dates are `timestamp without time zone`, holding UTC, exactly as with SQLite.
+
+## Who gets contacted (team -> user)
+
+A match has two teams and no division. To reach people we go **team -> players -> their families**: `IIdentityApi.GetUserIdsByTeamsAsync` (current season) returns the players of the teams plus the other members of their families.
+Used by the presence reminders (`GetFamilyIdsByTeamsAsync`), `MatchCancelled` (also tells families that had confirmed, and staff / volunteers signed up) and `POST /admin/notifications` with `teamId` (without it: `divisionId`, then everybody).
+`GET /family` lists the `teamIds` of each member, and `QUERY /matches` with `memberId` returns the matches of the teams that member plays in.
