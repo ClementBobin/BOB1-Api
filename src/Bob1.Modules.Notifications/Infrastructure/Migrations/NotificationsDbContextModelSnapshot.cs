@@ -48,7 +48,7 @@ namespace Bob1.Modules.Notifications.Infrastructure.Migrations
                     b.ToTable("device_tokens", (string)null);
                 });
 
-            modelBuilder.Entity("Bob1.Modules.Notifications.Domain.UserNotification", b =>
+            modelBuilder.Entity("Bob1.Modules.Notifications.Domain.Notification", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
@@ -61,13 +61,17 @@ namespace Bob1.Modules.Notifications.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp without time zone");
 
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("DataJson")
                         .HasColumnType("text");
 
-                    b.Property<DateTime?>("ExpiresAtUtc")
-                        .HasColumnType("timestamp without time zone");
+                    b.Property<string>("DedupeKey")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
-                    b.Property<DateTime?>("ReadAtUtc")
+                    b.Property<DateTime?>("ExpiresAtUtc")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<bool>("Recurring")
@@ -81,6 +85,39 @@ namespace Bob1.Modules.Notifications.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<bool>("VisibleInAdmin")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DedupeKey")
+                        .IsUnique()
+                        .HasFilter("\"DedupeKey\" IS NOT NULL");
+
+                    b.HasIndex("VisibleInAdmin", "CreatedAtUtc");
+
+                    b.ToTable("notifications", (string)null);
+                });
+
+            modelBuilder.Entity("Bob1.Modules.Notifications.Domain.UserNotification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid>("NotificationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ReadAtUtc")
+                        .HasColumnType("timestamp without time zone");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
@@ -88,7 +125,19 @@ namespace Bob1.Modules.Notifications.Infrastructure.Migrations
 
                     b.HasIndex("UserId", "CreatedAtUtc");
 
-                    b.ToTable("notifications", (string)null);
+                    b.HasIndex("NotificationId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("user_notifications", (string)null);
+                });
+
+            modelBuilder.Entity("Bob1.Modules.Notifications.Domain.UserNotification", b =>
+                {
+                    b.HasOne("Bob1.Modules.Notifications.Domain.Notification", null)
+                        .WithMany()
+                        .HasForeignKey("NotificationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

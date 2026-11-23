@@ -41,28 +41,34 @@ internal sealed class NotificationsController(NotificationsDbContext db, ICurren
 
     // ---- In-app notification list ----
 
+    // The user's inbox: their delivery rows joined to the shared content. The DTO keeps the user row's id
+    // (that is what /read expects), so the mobile contract is unchanged.
+    private IQueryable<NotificationDto> Inbox() =>
+        from u in db.UserNotifications.AsNoTracking()
+        join n in db.Notifications.AsNoTracking() on u.NotificationId equals n.Id
+        where u.UserId == user.UserId
+        orderby u.CreatedAtUtc descending
+        select new NotificationDto(u.Id, n.Title, n.Body, n.DataJson, u.CreatedAtUtc, u.ReadAtUtc != null, n.ExpiresAtUtc, n.Recurring, n.Startup);
+
     [HttpQuery("notifications")]
     public async Task<IActionResult> List([FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] MyNotificationQuery? query, CancellationToken ct)
     {
         query ??= new(null, null, null);
-        var q = db.Notifications.AsNoTracking().Where(n => n.UserId == user.UserId);
-        if (query.UnreadOnly == true) q = q.Where(n => n.ReadAtUtc == null);
+        var q = Inbox();
+        if (query.UnreadOnly == true) q = q.Where(n => !n.IsRead);
 
-        var rows = await q.OrderByDescending(n => n.CreatedAtUtc)
-            .Skip(Paging.Skip(query.Skip)).Take(Paging.Take(query.Take, 30, 100))
-            .Select(n => new NotificationDto(n.Id, n.Title, n.Body, n.DataJson, n.CreatedAtUtc, n.ReadAtUtc != null, n.ExpiresAtUtc, n.Recurring, n.Startup))
-            .ToListAsync(ct);
+        var rows = await q.Skip(Paging.Skip(query.Skip)).Take(Paging.Take(query.Take, 30, 100)).ToListAsync(ct);
         return Ok(rows);
     }
 
     [HttpGet("notifications/unread-count")]
     public async Task<IActionResult> UnreadCount(CancellationToken ct) =>
-        Ok(new { count = await db.Notifications.CountAsync(n => n.UserId == user.UserId && n.ReadAtUtc == null, ct) });
+        Ok(new { count = await db.UserNotifications.CountAsync(n => n.UserId == user.UserId && n.ReadAtUtc == null, ct) });
 
     [HttpPost("notifications/{id:guid}/read")]
     public async Task<IActionResult> MarkRead(Guid id, CancellationToken ct)
     {
-        var n = await db.Notifications.SingleOrDefaultAsync(x => x.Id == id && x.UserId == user.UserId, ct);
+        var n = await db.UserNotifications.SingleOrDefaultAsync(x => x.Id == id && x.UserId == user.UserId, ct);
         if (n is null) return Error.NotFound("notification.not_found", "Notification not found.").ToProblem();
         n.MarkRead(clock.GetUtcNow().UtcDateTime);
         await db.SaveChangesAsync(ct);
@@ -73,7 +79,7 @@ internal sealed class NotificationsController(NotificationsDbContext db, ICurren
     public async Task<IActionResult> MarkAllRead(CancellationToken ct)
     {
         var now = clock.GetUtcNow().UtcDateTime;
-        await db.Notifications.Where(n => n.UserId == user.UserId && n.ReadAtUtc == null)
+        await db.UserNotifications.Where(n => n.UserId == user.UserId && n.ReadAtUtc == null)
             .ExecuteUpdateAsync(s => s.SetProperty(n => n.ReadAtUtc, (DateTime?)now), ct);
         return NoContent();
     }

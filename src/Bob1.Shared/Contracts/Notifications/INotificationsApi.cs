@@ -3,12 +3,16 @@ namespace Bob1.Shared.Contracts.Notifications;
 /// <summary>
 /// Stores an in-app notification for each user and (unless push is false) pushes it to their devices.
 /// Channels: in-app is always written (low level); push is the medium level; there is no email except account security.
+/// Each call stores ONE content row (Notification) plus one thin row per recipient (UserNotification).
+/// <c>adminVisible</c> controls whether that notification shows in the admin history: audiences (broadcast, match notices)
+/// are visible by default; personal notices (SendToPersonAsync), de-duplicated reminders and admin audit copies are not.
 /// </summary>
 public interface INotificationsApi
 {
     Task SendToUsersAsync(IEnumerable<Guid> userIds, string title, string body,
         IReadOnlyDictionary<string, string>? data = null, CancellationToken ct = default,
-        DateTime? expiresAtUtc = null, bool recurring = false, bool startup = false, bool push = true);
+        DateTime? expiresAtUtc = null, bool recurring = false, bool startup = false, bool push = true,
+        bool adminVisible = true);
 
     Task SendToPersonAsync(Guid personId, string title, string body,
         IReadOnlyDictionary<string, string>? data = null, CancellationToken ct = default,
