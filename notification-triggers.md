@@ -1,5 +1,17 @@
 # Notification Trigger Tree
 
+## Storage model
+
+| Table | One row per | Holds |
+|---|---|---|
+| `notifications` | notification sent | type, title, body, data, options (expiry / recurring / startup), `DedupeKey` (unique), `VisibleInAdmin` |
+| `user_notifications` | recipient | `NotificationId`, `UserId`, delivery date, read date (no content) |
+| `device_tokens` | device | FCM token of a user |
+
+- The admin history lists `notifications` where `VisibleInAdmin = true`, with recipient / read counts. Editing or deleting one affects every recipient.
+- `SendToUsersAsync` is visible by default (broadcast, match notices). `SendToPersonAsync` (penalty, bonus, role change...), `SendToUsersOnceAsync` (reminders) and `NotifyAdminsAsync` (audit copies) are hidden from the admin list and only seen by their recipients.
+- De-duplication: `SendToUsersOnceAsync` reuses the `notifications` row with the same `DedupeKey` and only adds the missing `user_notifications` rows (unique `(NotificationId, UserId)`).
+
 ## Current Architecture
 
 ```mermaid
