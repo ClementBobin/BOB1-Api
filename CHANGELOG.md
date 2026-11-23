@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.9.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.8.1...v1.9.0) (2026-11-23)
+
+### ✨ Features
+
+* added possibility to send notif to all staff member ([4de69dd](https://github.com/ClementBobin/BOB1-Api/commit/4de69ddf625da3223b9700c284522c84705f7495))
+
 ## [1.8.1](https://github.com/ClementBobin/BOB1-Api/compare/v1.8.0...v1.8.1) (2026-11-23)
 
 ### 🐛 Bug Fixes
