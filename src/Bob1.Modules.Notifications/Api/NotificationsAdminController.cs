@@ -18,6 +18,8 @@ internal sealed record NotificationRecipientDto(Guid UserId, DateTime DeliveredA
 [Tags("Notifications (admin)")]
 internal sealed class NotificationsAdminController(NotificationsDbContext db, ICurrentUser actor) : ApiControllerBase
 {
+    private static readonly string[] BroadcastRoles = ["Parent", "Staff", "Admin"];
+
     // ---- Broadcast ----
     [HttpPost]
     public async Task<IActionResult> Broadcast(BroadcastRequest r,
@@ -26,10 +28,20 @@ internal sealed class NotificationsAdminController(NotificationsDbContext db, IC
         if (Guard.First(Guard.NotBlank(r.Title, "title", 200), Guard.NotBlank(r.Body, "body", 1000)) is { } err)
             return err.ToProblem();
 
-        // A team targets its players (and families); otherwise the division; otherwise everyone.
-        var recipients = r.TeamId is { } teamId
-            ? await identity.GetUserIdsByTeamsAsync([teamId], ct)
-            : await identity.GetUserIdsByDivisionAsync(r.DivisionId, ct);
+        // A role targets everyone holding it (e.g. all Staff); otherwise a team targets its players (and families);
+        // otherwise the division; otherwise everyone.
+        IReadOnlyList<Guid> recipients;
+        if (!string.IsNullOrWhiteSpace(r.Role))
+        {
+            var role = BroadcastRoles.FirstOrDefault(x => string.Equals(x, r.Role.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (role is null)
+                return Error.Validation("notification.role", $"Unknown role. Allowed: {string.Join(", ", BroadcastRoles)}.").ToProblem();
+            recipients = await identity.GetUserIdsByRoleAsync(role, ct);
+        }
+        else if (r.TeamId is { } teamId)
+            recipients = await identity.GetUserIdsByTeamsAsync([teamId], ct);
+        else
+            recipients = await identity.GetUserIdsByDivisionAsync(r.DivisionId, ct);
         var data = new Dictionary<string, string> { ["type"] = "broadcast" };
 
         // The one visible entry of the admin history.
