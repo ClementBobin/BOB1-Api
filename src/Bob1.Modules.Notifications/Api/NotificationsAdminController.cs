@@ -9,16 +9,29 @@ internal sealed record NotificationQuery(string? Search, string? Type, int? Skip
 
 /// <summary>One row of the admin history: a notification sent once, with how many people got it and how many read it.</summary>
 internal sealed record AdminNotificationDto(Guid Id, string Title, string Body, string Type, string? DataJson,
-    DateTime CreatedAtUtc, DateTime? ExpiresAtUtc, bool Recurring, bool Startup, int RecipientCount, int ReadCount);
+    DateTime CreatedAtUtc, DateTime? ExpiresAtUtc, bool Recurring, bool Startup, int RecipientCount, int ReadCount,
+    int? RecurrenceHours, DateTime? LastSentAtUtc);
 
 internal sealed record NotificationRecipientDto(Guid UserId, DateTime DeliveredAtUtc, DateTime? ReadAtUtc);
 
 [Route(ApiRoutes.V1 + "/admin/notifications")]
 [Authorize(Policy = Policies.Admin)]
 [Tags("Notifications (admin)")]
-internal sealed class NotificationsAdminController(NotificationsDbContext db, ICurrentUser actor) : ApiControllerBase
+internal sealed class NotificationsAdminController(NotificationsDbContext db, ICurrentUser actor, TimeProvider clock) : ApiControllerBase
 {
     private static readonly string[] BroadcastRoles = ["Parent", "Staff", "Admin"];
+    private const int MaxRecurrenceHours = 24 * 90;
+
+    /// <summary>A recurring notification needs an interval and an end date, so it never repeats forever.</summary>
+    private Error? ValidateRecurrence(bool recurring, int? hours, DateTime? expiresAtUtc)
+    {
+        if (!recurring) return null;
+        if (hours is not (>= 1 and <= MaxRecurrenceHours))
+            return Error.Validation("notification.recurrence", $"Recurrence must be between 1 and {MaxRecurrenceHours} hours.");
+        if (expiresAtUtc is not { } end || end <= clock.GetUtcNow().UtcDateTime)
+            return Error.Validation("notification.recurrence_expiry", "A recurring notification needs an expiration date in the future.");
+        return null;
+    }
 
     // ---- Broadcast ----
     [HttpPost]
@@ -27,6 +40,7 @@ internal sealed class NotificationsAdminController(NotificationsDbContext db, IC
     {
         if (Guard.First(Guard.NotBlank(r.Title, "title", 200), Guard.NotBlank(r.Body, "body", 1000)) is { } err)
             return err.ToProblem();
+        if (ValidateRecurrence(r.Recurring, r.RecurrenceHours, r.ExpiresAtUtc) is { } recErr) return recErr.ToProblem();
 
         // A role targets everyone holding it (e.g. all Staff); otherwise a team targets its players (and families);
         // otherwise the division; otherwise everyone.
@@ -45,7 +59,8 @@ internal sealed class NotificationsAdminController(NotificationsDbContext db, IC
         var data = new Dictionary<string, string> { ["type"] = "broadcast" };
 
         // The one visible entry of the admin history.
-        await notifications.SendToUsersAsync(recipients, r.Title.Trim(), r.Body.Trim(), data, ct, r.ExpiresAtUtc, r.Recurring, r.Startup);
+        await notifications.SendToUsersAsync(recipients, r.Title.Trim(), r.Body.Trim(), data, ct, r.ExpiresAtUtc, r.Recurring, r.Startup,
+            recurrenceHours: r.RecurrenceHours);
 
         // Admins who are not among the recipients get an in-app copy so they see what went out.
         // Hidden from the history: the broadcast above is already listed there.
@@ -74,7 +89,8 @@ internal sealed class NotificationsAdminController(NotificationsDbContext db, IC
             .Select(n => new AdminNotificationDto(n.Id, n.Title, n.Body, n.Type, n.DataJson, n.CreatedAtUtc, n.ExpiresAtUtc,
                 n.Recurring, n.Startup,
                 db.UserNotifications.Count(u => u.NotificationId == n.Id),
-                db.UserNotifications.Count(u => u.NotificationId == n.Id && u.ReadAtUtc != null)))
+                db.UserNotifications.Count(u => u.NotificationId == n.Id && u.ReadAtUtc != null),
+                n.RecurrenceHours, n.LastSentAtUtc ?? n.CreatedAtUtc))
             .ToListAsync(ct);
         return Ok(new PagedResult<AdminNotificationDto>(total, rows));
     }
@@ -99,11 +115,12 @@ internal sealed class NotificationsAdminController(NotificationsDbContext db, IC
     {
         if (Guard.First(Guard.NotBlank(r.Title, "title", 200), Guard.NotBlank(r.Body, "body", 1000)) is { } err)
             return err.ToProblem();
+        if (ValidateRecurrence(r.Recurring, r.RecurrenceHours, r.ExpiresAtUtc) is { } recErr) return recErr.ToProblem();
 
         var n = await db.Notifications.SingleOrDefaultAsync(x => x.Id == id && x.VisibleInAdmin, ct);
         if (n is null) return Error.NotFound("notification.not_found", "Notification not found.").ToProblem();
 
-        n.Update(r.Title.Trim(), r.Body.Trim(), r.ExpiresAtUtc, r.Recurring, r.Startup);
+        n.Update(r.Title.Trim(), r.Body.Trim(), r.ExpiresAtUtc, r.Recurring, r.Startup, r.RecurrenceHours);
         await db.SaveChangesAsync(ct);
         return Ok(await ToDto(n.Id, ct));
     }
@@ -124,6 +141,7 @@ internal sealed class NotificationsAdminController(NotificationsDbContext db, IC
             .Select(n => new AdminNotificationDto(n.Id, n.Title, n.Body, n.Type, n.DataJson, n.CreatedAtUtc, n.ExpiresAtUtc,
                 n.Recurring, n.Startup,
                 db.UserNotifications.Count(u => u.NotificationId == n.Id),
-                db.UserNotifications.Count(u => u.NotificationId == n.Id && u.ReadAtUtc != null)))
+                db.UserNotifications.Count(u => u.NotificationId == n.Id && u.ReadAtUtc != null),
+                n.RecurrenceHours, n.LastSentAtUtc ?? n.CreatedAtUtc))
             .SingleAsync(ct);
 }

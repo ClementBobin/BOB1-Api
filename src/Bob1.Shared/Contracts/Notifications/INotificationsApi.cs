@@ -12,7 +12,7 @@ public interface INotificationsApi
     Task SendToUsersAsync(IEnumerable<Guid> userIds, string title, string body,
         IReadOnlyDictionary<string, string>? data = null, CancellationToken ct = default,
         DateTime? expiresAtUtc = null, bool recurring = false, bool startup = false, bool push = true,
-        bool adminVisible = true);
+        bool adminVisible = true, int? recurrenceHours = null);
 
     Task SendToPersonAsync(Guid personId, string title, string body,
         IReadOnlyDictionary<string, string>? data = null, CancellationToken ct = default,
