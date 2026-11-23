@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.10.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.9.0...v1.10.0) (2026-11-23)
+
+### ✨ Features
+
+* notification récurrence ([034bde2](https://github.com/ClementBobin/BOB1-Api/commit/034bde21de1d9b9b3eb2b21f549dc9e45ba1d1a9))
+
 ## [1.9.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.8.1...v1.9.0) (2026-11-23)
 
 ### ✨ Features
