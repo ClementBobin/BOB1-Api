@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.8.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.7.0...v1.8.0) (2026-11-23)
+
+### ✨ Features
+
+* notifcation dedup ([0995a3a](https://github.com/ClementBobin/BOB1-Api/commit/0995a3ab5a56534457bce5980e809f76e2d731bc))
+
 ## [1.7.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.6.0...v1.7.0) (2026-11-13)
 
 ### ✨ Features
