@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.8.1](https://github.com/ClementBobin/BOB1-Api/compare/v1.8.0...v1.8.1) (2026-11-23)
+
+### 🐛 Bug Fixes
+
+* duplicate ([7b507ee](https://github.com/ClementBobin/BOB1-Api/commit/7b507eee2164c70682d1a21be788e65136962c92))
+
 ## [1.8.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.7.0...v1.8.0) (2026-11-23)
 
 ### ✨ Features
