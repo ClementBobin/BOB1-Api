@@ -28,8 +28,6 @@ public interface IIdentityApi
     Task<bool> IsInTeamsAsync(Guid userId, Guid? familyId, IReadOnlyCollection<Guid> teamIds, CancellationToken ct);
     /// <summary>Active users holding this role ("Parent", "Staff" or "Admin").</summary>
     Task<IReadOnlyList<Guid>> GetUserIdsByRoleAsync(string role, CancellationToken ct);
-    /// <summary>Players of these teams (current season) plus the other members of their families.</summary>
-    Task<IReadOnlyList<Guid>> GetUserIdsByTeamsAsync(IReadOnlyCollection<Guid> teamIds, CancellationToken ct);
     /// <summary>Players of these teams (current season), without their families.</summary>
     Task<IReadOnlyList<Guid>> GetPlayerIdsByTeamsAsync(IReadOnlyCollection<Guid> teamIds, CancellationToken ct);
     /// <summary>Players per division for a season (history).</summary>
