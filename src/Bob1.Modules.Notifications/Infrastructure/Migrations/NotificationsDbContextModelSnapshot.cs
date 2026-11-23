@@ -74,6 +74,12 @@ namespace Bob1.Modules.Notifications.Infrastructure.Migrations
                     b.Property<DateTime?>("ExpiresAtUtc")
                         .HasColumnType("timestamp without time zone");
 
+                    b.Property<DateTime?>("LastSentAtUtc")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<int?>("RecurrenceHours")
+                        .HasColumnType("integer");
+
                     b.Property<bool>("Recurring")
                         .HasColumnType("boolean");
 

@@ -37,6 +37,10 @@ internal sealed class Notification
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime? ExpiresAtUtc { get; private set; }
     public bool Recurring { get; private set; }
+    /// <summary>When <see cref="Recurring"/>: re-sent to its recipients every N hours, until <see cref="ExpiresAtUtc"/>.</summary>
+    public int? RecurrenceHours { get; private set; }
+    /// <summary>Last time it was (re)delivered. Null on rows created before recurrence existed (use CreatedAtUtc).</summary>
+    public DateTime? LastSentAtUtc { get; private set; }
     public bool Startup { get; private set; }
     public bool VisibleInAdmin { get; private set; }
 
@@ -44,19 +48,26 @@ internal sealed class Notification
 
     public static Notification Create(string type, string title, string body, string? dataJson, DateTime nowUtc,
         bool visibleInAdmin, Guid? createdByUserId = null, string? dedupeKey = null,
-        DateTime? expiresAtUtc = null, bool recurring = false, bool startup = false) =>
-        new() { Type = type, Title = title, Body = body, DataJson = dataJson, CreatedAtUtc = nowUtc,
+        DateTime? expiresAtUtc = null, bool recurring = false, bool startup = false, int? recurrenceHours = null) =>
+        new() { Type = type, Title = title, Body = body, DataJson = dataJson, CreatedAtUtc = nowUtc, LastSentAtUtc = nowUtc,
             VisibleInAdmin = visibleInAdmin, CreatedByUserId = createdByUserId, DedupeKey = dedupeKey,
-            ExpiresAtUtc = expiresAtUtc, Recurring = recurring, Startup = startup };
+            ExpiresAtUtc = expiresAtUtc, Recurring = recurring, RecurrenceHours = recurring ? recurrenceHours : null,
+            Startup = startup };
 
-    public void Update(string title, string body, DateTime? expiresAtUtc, bool recurring, bool startup)
+    public void Update(string title, string body, DateTime? expiresAtUtc, bool recurring, bool startup, int? recurrenceHours)
     {
         Title = title;
         Body = body;
         ExpiresAtUtc = expiresAtUtc;
         Recurring = recurring;
+        RecurrenceHours = recurring ? recurrenceHours : null;
         Startup = startup;
     }
+
+    /// <summary>True when a recurring notification is due again: it has not expired and the interval has elapsed.</summary>
+    public bool IsDueForResend(DateTime nowUtc) =>
+        Recurring && RecurrenceHours is > 0 && ExpiresAtUtc is { } end && end > nowUtc
+        && (LastSentAtUtc ?? CreatedAtUtc).AddHours(RecurrenceHours.Value) <= nowUtc;
 }
 
 /// <summary>Delivery + read state of a <see cref="Notification"/> for one user. Holds no content.</summary>

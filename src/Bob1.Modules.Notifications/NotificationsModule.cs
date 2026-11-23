@@ -25,7 +25,9 @@ public sealed class NotificationsModule : IModule
             services.AddSingleton<IPushSender, LoggingPushSender>();
         }
 
+        services.AddScoped<PushDispatcher>();
         services.AddScoped<INotificationsApi, NotificationsApi>();
+        services.AddHostedService<RecurringNotificationService>();
         services.AddScoped<IDomainEventHandler<Bob1.Shared.Contracts.Matches.MatchCreated>, MatchCreatedHandler>();
     }
 

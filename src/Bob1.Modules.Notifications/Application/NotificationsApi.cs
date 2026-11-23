@@ -5,8 +5,7 @@ using Bob1.Shared.Contracts.Notifications;
 namespace Bob1.Modules.Notifications.Application;
 
 internal sealed class NotificationsApi(
-    NotificationsDbContext db, IIdentityApi identity, IPushSender push, ICurrentUser actor, TimeProvider clock,
-    ILogger<NotificationsApi> log)
+    NotificationsDbContext db, IIdentityApi identity, PushDispatcher pusher, ICurrentUser actor, TimeProvider clock)
     : INotificationsApi
 {
     public async Task SendToPersonAsync(Guid personId, string title, string body,
@@ -59,13 +58,13 @@ internal sealed class NotificationsApi(
     public async Task SendToUsersAsync(IEnumerable<Guid> userIds, string title, string body,
         IReadOnlyDictionary<string, string>? data = null, CancellationToken ct = default,
         DateTime? expiresAtUtc = null, bool recurring = false, bool startup = false, bool push = true,
-        bool adminVisible = true)
+        bool adminVisible = true, int? recurrenceHours = null)
     {
         var ids = userIds.Distinct().ToList();
         if (ids.Count == 0) return;
 
         var now = clock.GetUtcNow().UtcDateTime;
-        var notification = Build(title, body, data, now, adminVisible, expiresAtUtc, recurring, startup, dedupeKey: null);
+        var notification = Build(title, body, data, now, adminVisible, expiresAtUtc, recurring, startup, dedupeKey: null, recurrenceHours);
         db.Notifications.Add(notification);
         await db.SaveChangesAsync(ct);
 
@@ -73,13 +72,14 @@ internal sealed class NotificationsApi(
     }
 
     private Notification Build(string title, string body, IReadOnlyDictionary<string, string>? data, DateTime now,
-        bool adminVisible, DateTime? expiresAtUtc, bool recurring, bool startup, string? dedupeKey)
+        bool adminVisible, DateTime? expiresAtUtc, bool recurring, bool startup, string? dedupeKey,
+        int? recurrenceHours = null)
     {
         var type = data is not null && data.TryGetValue("type", out var t) && !string.IsNullOrWhiteSpace(t) ? t : "broadcast";
         var payload = data is null ? null : new Dictionary<string, string>(data);
         if (dedupeKey is not null) (payload ??= new())["dedupe"] = dedupeKey;
         return Notification.Create(type, title, body, payload is null ? null : JsonSerializer.Serialize(payload), now,
-            adminVisible, actor.IsAuthenticated ? actor.UserId : null, dedupeKey, expiresAtUtc, recurring, startup);
+            adminVisible, actor.IsAuthenticated ? actor.UserId : null, dedupeKey, expiresAtUtc, recurring, startup, recurrenceHours);
     }
 
     /// <summary>Writes the per-user rows, then pushes to their devices (best-effort).</summary>
@@ -88,24 +88,6 @@ internal sealed class NotificationsApi(
         db.UserNotifications.AddRange(userIds.Select(id => UserNotification.Create(notification.Id, id, now)));
         await db.SaveChangesAsync(ct);
 
-        if (!pushEnabled) return;
-
-        // Push is best-effort: a Firebase outage must never break the action that triggered the notification.
-        try
-        {
-            var tokens = await db.DeviceTokens.Where(t => userIds.Contains(t.UserId)).Select(t => t.Token).ToListAsync(ct);
-            if (tokens.Count == 0) return;
-
-            var data = notification.DataJson is null
-                ? null
-                : JsonSerializer.Deserialize<Dictionary<string, string>>(notification.DataJson);
-            var invalid = await push.SendAsync(tokens, notification.Title, notification.Body, data, ct);
-            if (invalid.Count > 0)
-                await db.DeviceTokens.Where(t => invalid.Contains(t.Token)).ExecuteDeleteAsync(ct);
-        }
-        catch (Exception ex)
-        {
-            log.LogWarning(ex, "Push delivery failed for {Count} user(s)", userIds.Count);
-        }
+        if (pushEnabled) await pusher.SendAsync(notification, userIds, ct);
     }
 }
