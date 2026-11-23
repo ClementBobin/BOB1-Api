@@ -22,16 +22,6 @@ internal sealed class IdentityApi(IdentityDbContext db, MembershipService member
                 (u.Id == userId || (familyId != null && u.FamilyId == familyId))), ct);
     }
 
-    public async Task<IReadOnlyList<Guid>> GetUserIdsByTeamsAsync(IReadOnlyCollection<Guid> teamIds, CancellationToken ct)
-    {
-        var season = await memberships.EnsureCurrentSeasonAsync(ct);
-        var playerIds = db.TeamMemberships.Where(t => t.Season == season && teamIds.Contains(t.TeamId)).Select(t => t.UserId);
-        var familyIds = db.Users.Where(u => u.FamilyId != null && playerIds.Contains(u.Id)).Select(u => u.FamilyId!.Value);
-        return await db.Users.AsNoTracking()
-            .Where(u => u.IsActive && (playerIds.Contains(u.Id) || (u.FamilyId != null && familyIds.Contains(u.FamilyId.Value))))
-            .Select(u => u.Id).ToListAsync(ct);
-    }
-
     public async Task<IReadOnlyList<Guid>> GetFamilyIdsByTeamsAsync(IReadOnlyCollection<Guid> teamIds, CancellationToken ct)
     {
         var season = await memberships.EnsureCurrentSeasonAsync(ct);
