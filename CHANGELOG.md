@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.13.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.12.0...v1.13.0) (2026-11-24)
+
+### ✨ Features
+
+* added swagger/scalar ([db15ec2](https://github.com/ClementBobin/BOB1-Api/commit/db15ec21273f26a4d111921c0fbc54fa45206efb))
+
 ## [1.12.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.11.0...v1.12.0) (2026-11-24)
 
 ### ✨ Features
