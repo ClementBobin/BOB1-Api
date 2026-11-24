@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.11.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.10.0...v1.11.0) (2026-11-24)
+
+### ✨ Features
+
+* added pswd and email reset ([7690a3b](https://github.com/ClementBobin/BOB1-Api/commit/7690a3b600ceedc997dc998c969a7aa22e5f3b62))
+
 ## [1.10.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.9.0...v1.10.0) (2026-11-23)
 
 ### ✨ Features
