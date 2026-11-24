@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.12.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.11.0...v1.12.0) (2026-11-24)
+
+### ✨ Features
+
+* added biométrie ([069a0da](https://github.com/ClementBobin/BOB1-Api/commit/069a0da285ca69f40c7a056772f54059b12537ad))
+
 ## [1.11.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.10.0...v1.11.0) (2026-11-24)
 
 ### ✨ Features
