@@ -4,4 +4,10 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
     <ProjectReference Include="..\Bob1.Shared\Bob1.Shared.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <!-- Unit tests (tests/Bob1.Tests) exercise the internal domain and application classes. -->
+    <InternalsVisibleTo Include="Bob1.Tests" />
+  </ItemGroup>
+
 </Project>

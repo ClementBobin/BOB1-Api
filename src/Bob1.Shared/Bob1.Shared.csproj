@@ -2,4 +2,10 @@
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
+
+  <ItemGroup>
+    <!-- Unit tests (tests/Bob1.Tests) exercise the internal domain and application classes. -->
+    <InternalsVisibleTo Include="Bob1.Tests" />
+  </ItemGroup>
+
 </Project>

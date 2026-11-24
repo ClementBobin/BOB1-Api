@@ -1,0 +1,36 @@
+name: 🧪 E2E (Maestro)
+
+# Runs the Android app's Maestro flows against THIS version of the API.
+# The flows, the emulator setup and the app build live in ClementBobin/bob1
+# (.github/workflows/e2e.yml, .maestro/): this workflow only says which API commit to test.
+on:
+  pull_request:
+    branches: [ main, dev ]
+    paths:
+      - 'src/**'
+      - 'Directory.Build.props'
+      - 'Bob1.slnx'
+      - '.github/workflows/e2e.yml'
+  workflow_dispatch:
+    inputs:
+      app_ref:
+        description: "bob1 (Android app) branch, tag or SHA to test with"
+        required: false
+        default: main
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    uses: ClementBobin/bob1/.github/workflows/e2e.yml@main
+    with:
+      api_repository: ${{ github.repository }}
+      api_ref: ${{ github.sha }}
+      app_repository: ClementBobin/bob1
+      app_ref: ${{ inputs.app_ref || 'main' }}
