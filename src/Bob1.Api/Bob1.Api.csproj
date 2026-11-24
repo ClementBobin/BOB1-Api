@@ -6,6 +6,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Scalar.AspNetCore" Version="3.2.0" />
     <ProjectReference Include="..\Bob1.Shared\Bob1.Shared.csproj" />
     <ProjectReference Include="..\Bob1.Modules.Club\Bob1.Modules.Club.csproj" />
     <ProjectReference Include="..\Bob1.Modules.Identity\Bob1.Modules.Identity.csproj" />

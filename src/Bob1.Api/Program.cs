@@ -10,6 +10,7 @@ using Bob1.Modules.Ranking;
 using Bob1.Shared;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Scalar.AspNetCore;
 
 // Keep DateTime as "timestamp without time zone" (the app stores UTC everywhere and, like with SQLite before,
 // does not tag Kind), instead of Npgsql 6+'s strict timestamptz rules that reject Kind=Unspecified values.
@@ -98,7 +99,10 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 if (app.Environment.IsDevelopment())
+{
     app.MapOpenApi();        // /openapi/v1.json -> generate the Kotlin client from this
+    app.MapScalarApiReference();
+}
 
 // Migrations (+ dev seed data in Development). In production set Database:MigrateOnStartup=true
 // for a single instance, or run migrations from your deployment pipeline instead.
