@@ -9,6 +9,7 @@ internal sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> opti
     public DbSet<TeamMembership> TeamMemberships => Set<TeamMembership>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<FamilyInvitation> Invitations => Set<FamilyInvitation>();
+    public DbSet<AccountLink> AccountLinks => Set<AccountLink>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -55,6 +56,17 @@ internal sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> opti
             e.Property(x => x.TokenHash).HasMaxLength(64);
             e.HasIndex(x => x.TokenHash).IsUnique();
             e.HasIndex(x => x.UserId);
+        });
+
+        b.Entity<AccountLink>(e =>
+        {
+            e.ToTable("account_links");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Purpose).HasConversion<string>().HasMaxLength(32);
+            e.Property(x => x.TokenHash).HasMaxLength(64);
+            e.HasIndex(x => x.TokenHash).IsUnique();
+            e.HasIndex(x => new { x.UserId, x.Purpose });
         });
 
         b.Entity<FamilyInvitation>(e =>

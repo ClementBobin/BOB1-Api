@@ -117,6 +117,37 @@ QUERY {{host}}/api/v1/ranking-rules
 Authorization: Bearer {{adminToken}}
 
 ###
+# One-time link so a person sets a new password themselves (copy/paste it instead of an email). Valid 24 h, single use.
+# The admin app turns the returned token into https://<admin-app>/account-link#token=...
+# @name resetLink
+POST {{host}}/api/v1/admin/people/PASTE_PERSON_ID/password-reset-link
+Authorization: Bearer {{adminToken}}
+
+###
+# Same, for a new sign-in email (the person types the new address; an admin never edits name or email).
+POST {{host}}/api/v1/admin/people/PASTE_PERSON_ID/email-change-link
+Authorization: Bearer {{adminToken}}
+
+###
+# Public (no token needed): what a link is for (PasswordReset / EmailChange), first name and masked email
+POST {{host}}/api/v1/auth/account-links/inspect
+Content-Type: application/json
+
+{ "token": "{{resetLink.response.body.token}}" }
+
+###
+POST {{host}}/api/v1/auth/account-links/reset-password
+Content-Type: application/json
+
+{ "token": "{{resetLink.response.body.token}}", "newPassword": "NewPassw0rd!" }
+
+###
+POST {{host}}/api/v1/auth/account-links/change-email
+Content-Type: application/json
+
+{ "token": "PASTE_EMAIL_CHANGE_TOKEN", "newEmail": "new.address@example.com" }
+
+###
 # Quick penalty from a rule (negative points in the rule's category): needs a person id (GET /api/v1/admin/people -> id)
 POST {{host}}/api/v1/admin/penalties/quick
 Authorization: Bearer {{adminToken}}
