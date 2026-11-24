@@ -97,3 +97,30 @@ internal sealed class FamilyInvitation
     public bool IsUsable(DateTime nowUtc) => UsedAtUtc is null && ExpiresAtUtc > nowUtc;
     public void MarkUsed(DateTime nowUtc) => UsedAtUtc = nowUtc;
 }
+
+internal enum AccountLinkPurpose { PasswordReset = 1, EmailChange = 2 }
+
+/// <summary>
+/// A one-time, expiring link an admin hands to a person (copy / paste) instead of an email, so the person can set a new
+/// password or a new sign-in email themselves. Only the SHA-256 hash of the token is stored.
+/// </summary>
+internal sealed class AccountLink
+{
+    public Guid Id { get; private set; } = Guid.NewGuid();
+    public Guid UserId { get; private set; }
+    public AccountLinkPurpose Purpose { get; private set; }
+    public string TokenHash { get; private set; } = default!;
+    public Guid CreatedByUserId { get; private set; }
+    public DateTime CreatedAtUtc { get; private set; }
+    public DateTime ExpiresAtUtc { get; private set; }
+    public DateTime? UsedAtUtc { get; private set; }
+
+    private AccountLink() { }
+
+    public static AccountLink Create(Guid userId, AccountLinkPurpose purpose, string tokenHash, Guid createdBy,
+        DateTime nowUtc, TimeSpan lifetime) =>
+        new() { UserId = userId, Purpose = purpose, TokenHash = tokenHash, CreatedByUserId = createdBy,
+            CreatedAtUtc = nowUtc, ExpiresAtUtc = nowUtc.Add(lifetime) };
+
+    public bool IsUsable(DateTime nowUtc) => UsedAtUtc is null && ExpiresAtUtc > nowUtc;
+}

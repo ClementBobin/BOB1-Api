@@ -15,6 +15,7 @@ public sealed class IdentityModule : IModule
         services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
         services.AddSingleton<TokenService>();
         services.AddScoped<AuthService>();
+        services.AddScoped<AccountLinkService>();
         services.AddScoped<MembershipService>();
         services.AddScoped<PeopleNotices>();
         services.AddScoped<IIdentityApi, IdentityApi>();

@@ -119,6 +119,6 @@ internal sealed class PeopleNotices(
     /// <summary>security.email_changed: the person is told their sign-in address changed (no email channel yet).</summary>
     public Task EmailChangedAsync(Guid userId, CancellationToken ct) =>
         Safe.RunAsync(log, "email changed", () => notifications.SendToPersonAsync(userId, "Adresse email modifiée",
-            "L'adresse email de votre compte vient d'être modifiée par un administrateur. Si ce n'est pas attendu, contactez-le.",
+            "L'adresse email de votre compte vient d'être modifiée. Si ce n'est pas vous, contactez un administrateur.",
             Data("security_email_changed", userId), ct));
 }

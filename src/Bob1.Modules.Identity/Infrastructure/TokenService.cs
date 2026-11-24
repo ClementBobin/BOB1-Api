@@ -36,7 +36,10 @@ internal sealed class TokenService(JwtOptions jwt, TimeProvider clock)
     }
 
     /// <summary>Opaque random token for the client + its SHA-256 hash for the database (never store the raw token).</summary>
-    public (string Token, string Hash) NewRefreshToken()
+    public (string Token, string Hash) NewRefreshToken() => NewOpaqueToken();
+
+    /// <summary>256-bit random URL-safe token (refresh tokens and account links share it).</summary>
+    public (string Token, string Hash) NewOpaqueToken()
     {
         var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
             .Replace('+', '-').Replace('/', '_').TrimEnd('=');

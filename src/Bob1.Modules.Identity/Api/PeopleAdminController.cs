@@ -10,7 +10,10 @@ internal sealed record PersonDto(Guid Id, string Email, string FirstName, string
 internal sealed record UpdateRolesRequest(string[] Roles);
 internal sealed record SetActiveRequest(bool IsActive);
 internal sealed record CreatePersonRequest(string Email, string FirstName, string LastName, string[] Roles, Guid? FamilyId, Guid? DivisionId, string? Password, Guid[]? TeamIds = null);
-internal sealed record UpdatePersonRequest(string Email, string FirstName, string LastName, Guid? FamilyId, Guid? DivisionId, Guid[]? TeamIds = null);   // TeamIds null = leave the teams unchanged
+/// <summary>An admin edits where a person belongs (family, division, teams) but never their identity: name and email are not part of
+/// this request (extra fields sent by an old client are ignored). The person edits their name (PUT /me) and changes their email
+/// or password through a one-time link the admin generates (POST {id}/password-reset-link, {id}/email-change-link).</summary>
+internal sealed record UpdatePersonRequest(Guid? FamilyId, Guid? DivisionId, Guid[]? TeamIds = null);   // TeamIds null = leave the teams unchanged
 internal sealed record CreatePersonResponse(PersonDto Person, string? TemporaryPassword);
 
 /// <summary>Status: "active" (enabled, can participate), "suspended" (enabled but barred from participating) or "deactivated" (account disabled).</summary>
@@ -23,7 +26,7 @@ internal sealed record TeamRef(Guid Id, string Name);
 [Authorize(Policy = Policies.Admin)]
 [Tags("People (admin)")]
 internal sealed class PeopleAdminController(IdentityDbContext db, IClubApi club, MembershipService memberships, IPasswordHasher<Domain.User> hasher, ICurrentUser me, TimeProvider clock,
-    PeopleNotices notices, IDomainEventDispatcher events, ILogger<PeopleAdminController> log)
+    PeopleNotices notices, IDomainEventDispatcher events, AccountLinkService links, ILogger<PeopleAdminController> log)
     : ApiControllerBase
 {
     [HttpQuery]
@@ -111,19 +114,9 @@ internal sealed class PeopleAdminController(IdentityDbContext db, IClubApi club,
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, UpdatePersonRequest r, CancellationToken ct)
     {
-        var invalid = Guard.First(
-            Guard.NotBlank(r.Email, "email"),
-            Guard.NotBlank(r.FirstName, "first_name", 100),
-            Guard.NotBlank(r.LastName, "last_name", 100));
-        if (invalid is not null) return invalid.ToProblem();
-        if (!r.Email.Contains('@')) return Error.Validation("email.invalid", "Invalid email address.").ToProblem();
-
         var u = await db.Users.SingleOrDefaultAsync(x => x.Id == id, ct);
         if (u is null) return Error.NotFound("user.not_found", "User not found.").ToProblem();
 
-        var email = r.Email.Trim().ToLowerInvariant();
-        if (await db.Users.AnyAsync(x => x.Id != id && x.Email == email, ct))
-            return Error.Conflict("email.taken", "An account with this email already exists.").ToProblem();
         if (r.FamilyId is { } familyId && !await db.Families.AnyAsync(f => f.Id == familyId, ct))
             return Error.NotFound("family.not_found", "Family not found.").ToProblem();
         if (r.DivisionId is { } divisionId && await club.GetDivisionAsync(divisionId, ct) is null)
@@ -132,12 +125,9 @@ internal sealed class PeopleAdminController(IdentityDbContext db, IClubApi club,
             return Error.NotFound("team.not_found", "One of the teams was not found.").ToProblem();
 
         var oldFamily = u.FamilyId;
-        var oldEmail = u.Email;
         var oldDivision = await CurrentDivisionAsync(u.Id, ct);
         var oldTeams = await CurrentTeamsAsync(u.Id, ct) ?? [];
 
-        u.SetName(r.FirstName.Trim(), r.LastName.Trim());
-        u.SetEmail(email);
         u.SetFamilyId(r.FamilyId);
         await db.SaveChangesAsync(ct);
         await memberships.SetCurrentAsync(u.Id, r.DivisionId, ct);   // only the current season changes: history is kept
@@ -146,9 +136,29 @@ internal sealed class PeopleAdminController(IdentityDbContext db, IClubApi club,
         var newTeams = await CurrentTeamsAsync(u.Id, ct) ?? [];
         await notices.ClubChangedAsync(u.Id, oldDivision, r.DivisionId, oldTeams, newTeams, ct);
         await notices.UnassignedAsync(u.Id, ct);
-        if (oldEmail != u.Email) await notices.EmailChangedAsync(u.Id, ct);
         await notices.FamilyChangedAsync(u.Id, oldFamily, r.FamilyId, ct);
         return Ok(ToDto(u, r.DivisionId, newTeams));
+    }
+
+    // ---- One-time links (copy / paste to the person instead of an email) ----
+    // The response carries the token once: the admin app turns it into a link to its public page; only a hash is stored.
+
+    /// <summary>A link where the person chooses a new password themselves. Valid 24 h, single use; replaces any previous one.</summary>
+    [HttpPost("{id:guid}/password-reset-link")]
+    public Task<IActionResult> PasswordResetLink(Guid id, CancellationToken ct) =>
+        IssueLinkAsync(id, AccountLinkPurpose.PasswordReset, ct);
+
+    /// <summary>A link where the person enters their new sign-in email themselves. Valid 24 h, single use; replaces any previous one.</summary>
+    [HttpPost("{id:guid}/email-change-link")]
+    public Task<IActionResult> EmailChangeLink(Guid id, CancellationToken ct) =>
+        IssueLinkAsync(id, AccountLinkPurpose.EmailChange, ct);
+
+    private async Task<IActionResult> IssueLinkAsync(Guid id, AccountLinkPurpose purpose, CancellationToken ct)
+    {
+        var result = await links.IssueAsync(id, purpose, me.UserId, ct);
+        if (!result.IsSuccess) return result.Error.ToProblem();
+        log.LogInformation("Admin {AdminId} issued a {Purpose} link for user {UserId}", me.UserId, purpose, id);
+        return Ok(result.Value);
     }
 
     [HttpPut("{id:guid}/roles")]
