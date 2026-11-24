@@ -12,4 +12,7 @@
     <Project Path="src/Bob1.Modules.Participation/Bob1.Modules.Participation.csproj" />
     <Project Path="src/Bob1.Modules.Ranking/Bob1.Modules.Ranking.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Bob1.Tests/Bob1.Tests.csproj" />
+  </Folder>
 </Solution>
