@@ -133,6 +133,8 @@ internal sealed class AccountLinkService(IdentityDbContext db, IPasswordHasher<U
         var now = Now;
         foreach (var t in await db.RefreshTokens.Where(t => t.UserId == userId && t.RevokedAtUtc == null).ToListAsync(ct))
             t.Revoke(now);
+        foreach (var c in await db.BiometricCredentials.Where(c => c.UserId == userId && c.RevokedAtUtc == null).ToListAsync(ct))
+            c.Revoke(now);
     }
 
     /// <summary>"camille@club.fr" -> "c***@club.fr".</summary>

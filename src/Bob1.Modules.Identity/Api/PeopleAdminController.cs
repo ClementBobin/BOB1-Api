@@ -194,6 +194,8 @@ internal sealed class PeopleAdminController(IdentityDbContext db, IClubApi club,
             var now = clock.GetUtcNow().UtcDateTime;
             foreach (var t in await db.RefreshTokens.Where(t => t.UserId == id && t.RevokedAtUtc == null).ToListAsync(ct))
                 t.Revoke(now);
+            foreach (var c in await db.BiometricCredentials.Where(c => c.UserId == id && c.RevokedAtUtc == null).ToListAsync(ct))
+                c.Revoke(now);
         }
         await db.SaveChangesAsync(ct);
         if (wasActive != r.IsActive) await notices.ActiveChangedAsync(u.Id, r.IsActive, ct);

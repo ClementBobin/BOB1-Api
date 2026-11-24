@@ -49,6 +49,7 @@ internal sealed class MeController(IdentityDbContext db, IPasswordHasher<Domain.
         var now = clock.GetUtcNow().UtcDateTime;
         var tokens = await db.RefreshTokens.Where(t => t.UserId == u.Id && t.RevokedAtUtc == null).ToListAsync(ct);
         foreach (var t in tokens) t.Revoke(now);
+        foreach (var c in await db.BiometricCredentials.Where(c => c.UserId == u.Id && c.RevokedAtUtc == null).ToListAsync(ct)) c.Revoke(now);
 
         await db.SaveChangesAsync(ct);
         await notices.PasswordChangedAsync(u.Id, ct);
