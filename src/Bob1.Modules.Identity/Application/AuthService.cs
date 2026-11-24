@@ -5,6 +5,10 @@ namespace Bob1.Modules.Identity.Application;
 internal sealed record RegisterRequest(string Email, string Password, string FirstName, string LastName, string? FamilyName, string? InvitationCode);
 internal sealed record LoginRequest(string Email, string Password);
 internal sealed record RefreshRequest(string RefreshToken);
+internal sealed record BiometricEnrollRequest(string? DeviceName);
+internal sealed record BiometricEnrollResponse(string BiometricToken, Guid CredentialId);
+internal sealed record BiometricLoginRequest(string BiometricToken);
+internal sealed record BiometricDisableRequest(Guid? CredentialId);
 
 internal sealed record UserDto(Guid Id, string Email, string FirstName, string LastName, string[] Roles, Guid? FamilyId);
 internal sealed record AuthResponse(string AccessToken, string RefreshToken, int ExpiresInSeconds, UserDto User);
@@ -121,6 +125,56 @@ internal sealed class AuthService(IdentityDbContext db, IPasswordHasher<User> ha
         stored.Revoke(Now);
         await db.SaveChangesAsync(ct);
     }
+
+    // ---- Biometric sign-in -------------------------------------------------------------------------------------------
+
+    /// <summary>Enrolls the calling user's device: returns the one and only copy of the raw token (the device stores it behind the biometric prompt).</summary>
+    public async Task<Result<BiometricEnrollResponse>> EnrollBiometricAsync(Guid userId, BiometricEnrollRequest r, CancellationToken ct)
+    {
+        var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(u => u.Id == userId, ct);
+        if (user is null || !user.IsActive) return Error.Unauthorized("auth.invalid_credentials", "Account is not active.");
+
+        var active = await db.BiometricCredentials.Where(c => c.UserId == userId && c.RevokedAtUtc == null && c.ExpiresAtUtc > Now)
+            .OrderBy(c => c.CreatedAtUtc).ToListAsync(ct);
+        // Keep the number of enrolled devices bounded: the oldest ones make room for the new one.
+        foreach (var old in active.Take(Math.Max(0, active.Count - (BiometricCredential.MaxPerUser - 1))))
+            old.Revoke(Now);
+
+        var (token, hash) = tokens.NewOpaqueToken();
+        var device = string.IsNullOrWhiteSpace(r.DeviceName) ? null : r.DeviceName.Trim();
+        if (device is { Length: > 100 }) device = device[..100];
+        var credential = BiometricCredential.Create(userId, hash, device, Now);
+        db.BiometricCredentials.Add(credential);
+        await db.SaveChangesAsync(ct);
+        return new BiometricEnrollResponse(token, credential.Id);
+    }
+
+    /// <summary>Anonymous: trades a device's biometric token for a normal session (same response as /login).</summary>
+    public async Task<Result<AuthResponse>> LoginBiometricAsync(BiometricLoginRequest r, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(r.BiometricToken)) return InvalidBiometricToken();
+        var hash = TokenService.Hash(r.BiometricToken);
+        var credential = await db.BiometricCredentials.SingleOrDefaultAsync(c => c.TokenHash == hash, ct);
+        if (credential is null || !credential.IsActive(Now)) return InvalidBiometricToken();
+
+        var user = await db.Users.SingleOrDefaultAsync(u => u.Id == credential.UserId, ct);
+        if (user is null || !user.IsActive) return InvalidBiometricToken();
+
+        credential.Touch(Now);
+        return await IssueAsync(user, ct);   // saves the credential's new expiry together with the refresh token
+    }
+
+    /// <summary>Disables biometric sign-in: the given credential (the device keeps its id next to the encrypted token), or every credential of the user when none is given.</summary>
+    public async Task DisableBiometricAsync(Guid userId, Guid? credentialId, CancellationToken ct)
+    {
+        var query = db.BiometricCredentials.Where(c => c.UserId == userId && c.RevokedAtUtc == null);
+        if (credentialId is { } id) query = query.Where(c => c.Id == id);
+        foreach (var c in await query.ToListAsync(ct)) c.Revoke(Now);
+        await db.SaveChangesAsync(ct);
+    }
+
+    private static Error InvalidBiometricToken() =>
+        Error.Unauthorized("auth.invalid_biometric_token", "Biometric sign-in is no longer valid on this device. Sign in with your password.");
 
     private static Error InvalidToken() => Error.Unauthorized("auth.invalid_refresh_token", "Invalid or expired refresh token.");
 

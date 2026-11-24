@@ -124,3 +124,34 @@ internal sealed class AccountLink
 
     public bool IsUsable(DateTime nowUtc) => UsedAtUtc is null && ExpiresAtUtc > nowUtc;
 }
+
+/// <summary>
+/// A device enrolled for biometric sign-in. The raw token lives on the device, encrypted by a key that only unlocks after a
+/// fingerprint / face check; only its SHA-256 hash is stored here. Unlike a refresh token it is not rotated, so it stays
+/// valid for the device until revoked, expired (sliding window) or the password changes.
+/// </summary>
+internal sealed class BiometricCredential
+{
+    public static readonly TimeSpan Lifetime = TimeSpan.FromDays(90);
+    public const int MaxPerUser = 5;
+
+    public Guid Id { get; private set; } = Guid.NewGuid();
+    public Guid UserId { get; private set; }
+    public string TokenHash { get; private set; } = default!;
+    public string? DeviceName { get; private set; }
+    public DateTime CreatedAtUtc { get; private set; }
+    public DateTime ExpiresAtUtc { get; private set; }
+    public DateTime? LastUsedAtUtc { get; private set; }
+    public DateTime? RevokedAtUtc { get; private set; }
+
+    private BiometricCredential() { }
+
+    public static BiometricCredential Create(Guid userId, string tokenHash, string? deviceName, DateTime nowUtc) =>
+        new() { UserId = userId, TokenHash = tokenHash, DeviceName = deviceName, CreatedAtUtc = nowUtc, ExpiresAtUtc = nowUtc.Add(Lifetime) };
+
+    public bool IsActive(DateTime nowUtc) => RevokedAtUtc is null && ExpiresAtUtc > nowUtc;
+    public void Revoke(DateTime nowUtc) => RevokedAtUtc ??= nowUtc;
+
+    /// <summary>Sliding expiry: a device that keeps signing in keeps its credential.</summary>
+    public void Touch(DateTime nowUtc) { LastUsedAtUtc = nowUtc; ExpiresAtUtc = nowUtc.Add(Lifetime); }
+}
