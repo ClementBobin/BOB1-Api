@@ -12,6 +12,7 @@ public sealed class RankingModule : IModule
             npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory_Ranking")));
 
         services.AddScoped<PointsService>();
+        services.AddScoped<Bob1.Shared.Contracts.Privacy.IPersonalDataContributor, RankingPersonalData>();
         services.AddScoped<Bob1.Shared.Contracts.Ranking.IRankingApi, Application.RankingApi>();
 
         services.AddScoped<IDomainEventHandler<PresenceConfirmed>, PresenceConfirmedHandler>();

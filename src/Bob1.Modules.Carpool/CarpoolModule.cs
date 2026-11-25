@@ -10,6 +10,7 @@ public sealed class CarpoolModule : IModule
             configuration.GetConnectionString("Default"),
             npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory_Carpool")));
         services.AddScoped<ICarpoolApi, CarpoolApi>();
+        services.AddScoped<Bob1.Shared.Contracts.Privacy.IPersonalDataContributor, CarpoolPersonalData>();
         services.AddHostedService<RideReminderService>();
         services.AddScoped<IDomainEventHandler<Bob1.Shared.Contracts.Identity.UserDeactivated>, DriverDeactivatedHandler>();
         services.AddScoped<IDomainEventHandler<Bob1.Shared.Contracts.Matches.MatchCancelled>, MatchCancelledRidesHandler>();

@@ -10,12 +10,12 @@ internal sealed record AccountLinkInfo(string Purpose, string FirstName, string 
 
 /// <summary>
 /// One-time links an admin copies to a person (instead of sending an email) so that the person sets a new password or a new
-/// sign-in email themselves. An admin never types the new value, so nothing about the person is changed by the admin.
+/// sign-in email themselves, downloads their data (export) or has their account erased. An admin never types the new value, so nothing about the person is changed by the admin.
 /// Rules: 24 h lifetime, single use, a new link cancels the previous one, only the token's SHA-256 is stored, and a successful use
 /// signs the person out everywhere (refresh tokens revoked).
 /// </summary>
 internal sealed class AccountLinkService(IdentityDbContext db, IPasswordHasher<User> hasher, TokenService tokens,
-    TimeProvider clock, PeopleNotices notices)
+    TimeProvider clock, PeopleNotices notices, PersonalDataService personalData)
 {
     public static readonly TimeSpan Lifetime = TimeSpan.FromHours(24);
 
@@ -29,7 +29,9 @@ internal sealed class AccountLinkService(IdentityDbContext db, IPasswordHasher<U
     {
         var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(u => u.Id == userId, ct);
         if (user is null) return Error.NotFound("user.not_found", "User not found.");
-        if (!user.IsActive) return Error.Conflict("user.inactive", "This account is deactivated.");
+        // A person who left the club still has the right to their data: only the account-changing links need an active account.
+        if (!user.IsActive && purpose is AccountLinkPurpose.PasswordReset or AccountLinkPurpose.EmailChange)
+            return Error.Conflict("user.inactive", "This account is deactivated.");
 
         var now = Now;
         // One live link per person and purpose: issuing a new one cancels the previous one.
@@ -107,6 +109,35 @@ internal sealed class AccountLinkService(IdentityDbContext db, IPasswordHasher<U
         return Result.Success();
     }
 
+    /// <summary>The person's whole data as one JSON-ready document. Single use, like every link: built first, then the link is claimed.</summary>
+    public async Task<Result<object>> ExportDataAsync(string? token, CancellationToken ct)
+    {
+        var found = await FindAsync(token, AccountLinkPurpose.DataExport, ct);
+        if (found is null) return InvalidLink;
+        var (link, user) = found.Value;
+
+        var export = await personalData.ExportAsync(user, ct);
+        if (!await ClaimAsync(link.Id, ct)) return InvalidLink;   // used a moment ago by a parallel request
+        return export;
+    }
+
+    /// <summary>
+    /// Erases the account behind an AccountDeletion link. The person must type their full email (the page only shows it masked):
+    /// the link alone is not enough for something that cannot be undone. A wrong email does not use the link up.
+    /// </summary>
+    public async Task<Result> DeleteAccountAsync(string? token, string? confirmEmail, CancellationToken ct)
+    {
+        var found = await FindAsync(token, AccountLinkPurpose.AccountDeletion, ct);
+        if (found is null) return InvalidLink;
+        var (_, user) = found.Value;
+
+        if (!string.Equals(user.Email, (confirmEmail ?? "").Trim(), StringComparison.OrdinalIgnoreCase))
+            return Error.Validation("email.mismatch", "The email does not match the account.");
+
+        // No claim: the link is erased together with the account, and stays usable if a step fails and has to be retried.
+        return await personalData.EraseAsync(user, ct);
+    }
+
     /// <summary>The usable link behind a token (and its active owner), optionally of a given purpose.</summary>
     private async Task<(AccountLink Link, User User)?> FindAsync(string? token, AccountLinkPurpose? purpose, CancellationToken ct)
     {
@@ -116,7 +147,9 @@ internal sealed class AccountLinkService(IdentityDbContext db, IPasswordHasher<U
         if (link is null || !link.IsUsable(Now) || (purpose is { } p && link.Purpose != p)) return null;
 
         var user = await db.Users.SingleOrDefaultAsync(u => u.Id == link.UserId, ct);
-        return user is { IsActive: true } ? (link, user) : null;
+        // Export and erasure also work for an account that was deactivated (someone who left the club).
+        var keepsRights = link.Purpose is AccountLinkPurpose.DataExport or AccountLinkPurpose.AccountDeletion;
+        return user is not null && (user.IsActive || keepsRights) ? (link, user) : null;
     }
 
     /// <summary>Atomically marks the link as used; false if it was already used or has expired (single use, even in a race).</summary>

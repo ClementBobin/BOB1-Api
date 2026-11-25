@@ -153,6 +153,16 @@ internal sealed class PeopleAdminController(IdentityDbContext db, IClubApi club,
     public Task<IActionResult> EmailChangeLink(Guid id, CancellationToken ct) =>
         IssueLinkAsync(id, AccountLinkPurpose.EmailChange, ct);
 
+    /// <summary>A link where the person downloads all their data (GDPR access / portability). Works for a deactivated account too.</summary>
+    [HttpPost("{id:guid}/data-export-link")]
+    public Task<IActionResult> DataExportLink(Guid id, CancellationToken ct) =>
+        IssueLinkAsync(id, AccountLinkPurpose.DataExport, ct);
+
+    /// <summary>A link where the person erases their account and data for good (GDPR erasure). Works for a deactivated account too.</summary>
+    [HttpPost("{id:guid}/account-deletion-link")]
+    public Task<IActionResult> AccountDeletionLink(Guid id, CancellationToken ct) =>
+        IssueLinkAsync(id, AccountLinkPurpose.AccountDeletion, ct);
+
     private async Task<IActionResult> IssueLinkAsync(Guid id, AccountLinkPurpose purpose, CancellationToken ct)
     {
         var result = await links.IssueAsync(id, purpose, me.UserId, ct);

@@ -98,7 +98,8 @@ internal sealed class FamilyInvitation
     public void MarkUsed(DateTime nowUtc) => UsedAtUtc = nowUtc;
 }
 
-internal enum AccountLinkPurpose { PasswordReset = 1, EmailChange = 2 }
+/// <summary>Stored by name (string column): adding a member needs no migration.</summary>
+internal enum AccountLinkPurpose { PasswordReset = 1, EmailChange = 2, DataExport = 3, AccountDeletion = 4 }
 
 /// <summary>
 /// A one-time, expiring link an admin hands to a person (copy / paste) instead of an email, so the person can set a new
