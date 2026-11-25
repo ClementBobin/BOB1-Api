@@ -163,10 +163,12 @@ Content-Type: application/json
 { "token": "{{resetLink.response.body.token}}" }
 
 ###
+# Password rules: 12-128 chars, lower + upper + digit + symbol, no 4 identical characters in a row, no common word
+# (password, azerty, 123456, basket...), no part of the name / email, and different from the current password.
 POST {{host}}/api/v1/auth/account-links/reset-password
 Content-Type: application/json
 
-{ "token": "{{resetLink.response.body.token}}", "newPassword": "NewPassw0rd!" }
+{ "token": "{{resetLink.response.body.token}}", "newPassword": "Corr3ct-Horse-Battery!" }
 
 ###
 POST {{host}}/api/v1/auth/account-links/change-email
