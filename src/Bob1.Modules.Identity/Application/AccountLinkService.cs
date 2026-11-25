@@ -56,12 +56,15 @@ internal sealed class AccountLinkService(IdentityDbContext db, IPasswordHasher<U
 
     public async Task<Result> ResetPasswordAsync(string? token, string? newPassword, CancellationToken ct)
     {
-        if (newPassword is null || newPassword.Length < 8)
-            return Error.Validation("password.too_short", "Password must be at least 8 characters.");
-
         var found = await FindAsync(token, AccountLinkPurpose.PasswordReset, ct);
         if (found is null) return InvalidLink;
         var (link, user) = found.Value;
+
+        // Checked against the person (their name and email must not be in it), before the link is used: a refused password costs nothing.
+        var policy = PasswordPolicy.Check(newPassword, user.Email, user.FirstName, user.LastName);
+        if (!policy.IsSuccess) return policy;
+        if (hasher.VerifyHashedPassword(user, user.PasswordHash, newPassword!) != PasswordVerificationResult.Failed)
+            return Error.Validation("password.same_as_current", "The new password must differ from the current one.");
 
         await using (var tx = await db.Database.BeginTransactionAsync(ct))
         {
