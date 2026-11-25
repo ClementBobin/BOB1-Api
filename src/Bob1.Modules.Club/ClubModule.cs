@@ -10,6 +10,7 @@ public sealed class ClubModule : IModule
             configuration.GetConnectionString("Default"),
             npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory_Club")));
         services.AddScoped<IClubApi, ClubApi>();
+        services.AddScoped<Bob1.Shared.Contracts.Privacy.IPersonalDataContributor, ClubPersonalData>();
         services.AddHostedService<SeasonService>();
     }
 

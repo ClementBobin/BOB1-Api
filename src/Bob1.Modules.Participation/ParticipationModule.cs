@@ -10,6 +10,7 @@ public sealed class ParticipationModule : IModule
             configuration.GetConnectionString("Default"),
             npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory_Participation")));
 
+        services.AddScoped<Bob1.Shared.Contracts.Privacy.IPersonalDataContributor, ParticipationPersonalData>();
         services.AddScoped<ConfirmPresenceHandler>();
         services.AddScoped<SlotMembershipHandler>();
 

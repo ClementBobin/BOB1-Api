@@ -175,6 +175,33 @@ Content-Type: application/json
 { "token": "PASTE_EMAIL_CHANGE_TOKEN", "newEmail": "new.address@example.com" }
 
 ###
+# GDPR: a link where the person downloads ALL their data as JSON (access / portability). Also for a deactivated account.
+# @name exportLink
+POST {{host}}/api/v1/admin/people/PASTE_PERSON_ID/data-export-link
+Authorization: Bearer {{adminToken}}
+
+###
+# Public: returns the JSON document and uses the link up
+POST {{host}}/api/v1/auth/account-links/export-data
+Content-Type: application/json
+
+{ "token": "{{exportLink.response.body.token}}" }
+
+###
+# GDPR: a link where the person erases their account and data FOR GOOD. Also for a deactivated account.
+# @name deletionLink
+POST {{host}}/api/v1/admin/people/PASTE_PERSON_ID/account-deletion-link
+Authorization: Bearer {{adminToken}}
+
+###
+# Public: the person must type their full email (the page only shows it masked). A wrong email does not use the link up.
+# 204 = erased. 409 user.last_admin = the last administrator cannot be erased.
+POST {{host}}/api/v1/auth/account-links/delete-account
+Content-Type: application/json
+
+{ "token": "{{deletionLink.response.body.token}}", "confirmEmail": "person@example.com" }
+
+###
 # Quick penalty from a rule (negative points in the rule's category): needs a person id (GET /api/v1/admin/people -> id)
 POST {{host}}/api/v1/admin/penalties/quick
 Authorization: Bearer {{adminToken}}
