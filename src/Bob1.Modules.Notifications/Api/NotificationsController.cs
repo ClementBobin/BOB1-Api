@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Bob1.Modules.Notifications.Api;
 
 internal sealed record PushTokenRequest(string Token);
-internal sealed record BroadcastRequest(string Title, string Body, Guid? DivisionId, Guid? TeamId = null, DateTime? ExpiresAtUtc = null, bool Recurring = false, bool Startup = false, string? Role = null, int? RecurrenceHours = null);
+internal sealed record BroadcastRequest(string Title, string Body, Guid? DivisionId, Guid? TeamId = null, DateTime? ExpiresAtUtc = null, bool Recurring = false, bool Startup = false, string? Role = null, int? RecurrenceHours = null, Guid? FamilyId = null);
 internal sealed record NotificationDto(Guid Id, string Title, string Body, string? DataJson, DateTime CreatedAtUtc, bool IsRead, DateTime? ExpiresAtUtc, bool Recurring, bool Startup);
 
 internal sealed record MyNotificationQuery(bool? UnreadOnly, int? Skip, int? Take);

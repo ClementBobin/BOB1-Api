@@ -33,10 +33,26 @@ public interface IIdentityApi
     /// <summary>Players per division for a season (history).</summary>
     Task<IReadOnlyDictionary<Guid, int>> GetSeasonPlayerCountsAsync(string season, CancellationToken ct);
     
+    /// <summary>
+    /// How many people a broadcast to each audience reaches right now (current season), computed with the same rules as
+    /// <see cref="GetUserIdsByDivisionAsync"/>, <see cref="GetUserIdsByTeamsAsync"/>, <see cref="GetUserIdsOfFamilyAsync"/> and
+    /// <see cref="GetUserIdsByRoleAsync"/>. An audience nobody belongs to is absent, so a picker never offers an empty one.
+    /// </summary>
+    Task<AudienceSizes> GetAudienceSizesAsync(CancellationToken ct);
+
     // New methods for person-level rankings
     Task<IReadOnlyDictionary<Guid, string>> GetPersonNamesAsync(IEnumerable<Guid> personIds, CancellationToken ct);
     Task<IReadOnlyDictionary<Guid, Guid?>> GetPersonFamilyMapAsync(CancellationToken ct);
     Task<IReadOnlyDictionary<Guid, string>> GetFamilyNamesForPersonsAsync(IEnumerable<Guid> personIds, CancellationToken ct);
 }
+
+/// <summary>Recipients per audience: division id, team id and role name -> count; families with their active member count.</summary>
+public sealed record AudienceSizes(
+    IReadOnlyDictionary<Guid, int> Divisions,
+    IReadOnlyDictionary<Guid, int> Teams,
+    IReadOnlyList<FamilyAudience> Families,
+    IReadOnlyDictionary<string, int> Roles);
+
+public sealed record FamilyAudience(Guid Id, string Name, int Members);
 
 public sealed record MemberInfo(Guid Id, Guid? FamilyId, string FirstName, string LastName, Guid? DivisionId);   // DivisionId = division in the current season
