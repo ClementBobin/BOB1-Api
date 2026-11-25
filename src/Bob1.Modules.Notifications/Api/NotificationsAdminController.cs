@@ -42,7 +42,7 @@ internal sealed class NotificationsAdminController(NotificationsDbContext db, IC
             return err.ToProblem();
         if (ValidateRecurrence(r.Recurring, r.RecurrenceHours, r.ExpiresAtUtc) is { } recErr) return recErr.ToProblem();
 
-        // A role targets everyone holding it (e.g. all Staff); otherwise a team targets its players (and families);
+        // A role targets everyone holding it (e.g. all Staff); a family its active members; a team its players (and families);
         // otherwise the division; otherwise everyone.
         IReadOnlyList<Guid> recipients;
         if (!string.IsNullOrWhiteSpace(r.Role))
@@ -52,10 +52,14 @@ internal sealed class NotificationsAdminController(NotificationsDbContext db, IC
                 return Error.Validation("notification.role", $"Unknown role. Allowed: {string.Join(", ", BroadcastRoles)}.").ToProblem();
             recipients = await identity.GetUserIdsByRoleAsync(role, ct);
         }
+        else if (r.FamilyId is { } familyId)
+            recipients = await identity.GetUserIdsOfFamilyAsync(familyId, ct);
         else if (r.TeamId is { } teamId)
             recipients = await identity.GetUserIdsByTeamsAsync([teamId], ct);
         else
             recipients = await identity.GetUserIdsByDivisionAsync(r.DivisionId, ct);
+        if (recipients.Count == 0)
+            return Error.Validation("notification.no_recipients", "Nobody belongs to this audience: nothing was sent.").ToProblem();
         var data = new Dictionary<string, string> { ["type"] = "broadcast" };
 
         // The one visible entry of the admin history.
@@ -69,6 +73,11 @@ internal sealed class NotificationsAdminController(NotificationsDbContext db, IC
             push: false, adminVisible: false);
         return Ok(new { recipients = recipients.Count });
     }
+
+    // ---- Audiences the admin can pick: only those with at least one recipient (divisions, teams, families, roles) ----
+    [HttpGet("audiences")]
+    public async Task<IActionResult> Audiences([FromServices] IIdentityApi identity, CancellationToken ct) =>
+        Ok(await identity.GetAudienceSizesAsync(ct));
 
     // ---- History: one row per notification sent (personal notices are not listed) ----
     [HttpQuery]

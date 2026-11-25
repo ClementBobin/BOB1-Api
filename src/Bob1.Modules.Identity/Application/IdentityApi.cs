@@ -105,6 +105,54 @@ internal sealed class IdentityApi(IdentityDbContext db, MembershipService member
             .GroupBy(m => m.DivisionId).Select(g => new { g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.Key, x => x.Count, ct);
 
+    public async Task<AudienceSizes> GetAudienceSizesAsync(CancellationToken ct)
+    {
+        var season = await memberships.EnsureCurrentSeasonAsync(ct);
+        var all = await db.Users.AsNoTracking().Select(u => new { u.Id, u.FamilyId, u.IsActive, u.Roles }).ToListAsync(ct);
+        var active = all.Where(u => u.IsActive).ToList();
+        var familyOf = all.ToDictionary(u => u.Id, u => u.FamilyId);
+        var activeIds = active.Select(u => u.Id).ToHashSet();
+        var activeByFamily = active.Where(u => u.FamilyId != null).ToLookup(u => u.FamilyId!.Value, u => u.Id);
+
+        // Same rule as the real resolvers: the (active) players plus the active members of their families.
+        // A division also reaches the families of players whose own account is deactivated; a team does not.
+        int Reach(IEnumerable<Guid> players, bool playerMustBeActive)
+        {
+            var reached = new HashSet<Guid>();
+            foreach (var player in players)
+            {
+                if (activeIds.Contains(player)) reached.Add(player);
+                else if (playerMustBeActive) continue;
+                if (familyOf.TryGetValue(player, out var family) && family is { } f)
+                    foreach (var member in activeByFamily[f]) reached.Add(member);
+            }
+            return reached.Count;
+        }
+
+        var divisionRows = await db.Memberships.AsNoTracking().Where(m => m.Season == season)
+            .Select(m => new { m.UserId, m.DivisionId }).ToListAsync(ct);
+        var teamRows = await db.TeamMemberships.AsNoTracking().Where(t => t.Season == season)
+            .Select(t => new { t.UserId, t.TeamId }).ToListAsync(ct);
+
+        var divisions = divisionRows.GroupBy(m => m.DivisionId)
+            .Select(g => (Id: g.Key, Size: Reach(g.Select(x => x.UserId), playerMustBeActive: false)))
+            .Where(x => x.Size > 0).ToDictionary(x => x.Id, x => x.Size);
+        var teams = teamRows.GroupBy(t => t.TeamId)
+            .Select(g => (Id: g.Key, Size: Reach(g.Select(x => x.UserId), playerMustBeActive: true)))
+            .Where(x => x.Size > 0).ToDictionary(x => x.Id, x => x.Size);
+
+        var familyIds = activeByFamily.Select(g => g.Key).ToList();
+        var names = await db.Families.AsNoTracking().Where(f => familyIds.Contains(f.Id)).ToDictionaryAsync(f => f.Id, f => f.Name, ct);
+        var families = activeByFamily.Where(g => names.ContainsKey(g.Key))
+            .Select(g => new FamilyAudience(g.Key, names[g.Key], g.Count())).OrderBy(f => f.Name).ToList();
+
+        var roles = Enum.GetValues<UserRoles>().Where(r => r != UserRoles.None)
+            .Select(r => (Name: r.ToString(), Size: active.Count(u => (u.Roles & r) == r)))
+            .Where(x => x.Size > 0).ToDictionary(x => x.Name, x => x.Size);
+
+        return new AudienceSizes(divisions, teams, families, roles);
+    }
+
     // New methods for person-level rankings
     public async Task<IReadOnlyDictionary<Guid, string>> GetPersonNamesAsync(IEnumerable<Guid> personIds, CancellationToken ct)
     {
