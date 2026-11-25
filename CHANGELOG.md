@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.14.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.13.0...v1.14.0) (2026-11-25)
+
+### ✨ Features
+
+* GDPR data export and account erasure through ([b79e7fe](https://github.com/ClementBobin/BOB1-Api/commit/b79e7fe5bdac8c451902da38a2c65af8a2eea636))
+
 ## [1.13.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.12.0...v1.13.0) (2026-11-24)
 
 ### ✨ Features
