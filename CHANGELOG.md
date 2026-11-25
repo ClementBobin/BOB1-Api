@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.15.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.14.0...v1.15.0) (2026-11-25)
+
+### ✨ Features
+
+* **identity:** stronger password policy for the reset link ([a53a836](https://github.com/ClementBobin/BOB1-Api/commit/a53a8364d554cf639eb32abb8de3086c7a5faee8))
+
 ## [1.14.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.13.0...v1.14.0) (2026-11-25)
 
 ### ✨ Features
