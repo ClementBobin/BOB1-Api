@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.16.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.15.0...v1.16.0) (2026-11-25)
+
+### ✨ Features
+
+* notifcation familly ([3083a53](https://github.com/ClementBobin/BOB1-Api/commit/3083a533b79cf1a9e000c3e832eb4823431ec9cc))
+
 ## [1.15.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.14.0...v1.15.0) (2026-11-25)
 
 ### ✨ Features
