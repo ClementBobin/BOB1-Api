@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.16.1](https://github.com/ClementBobin/BOB1-Api/compare/v1.16.0...v1.16.1) (2026-11-26)
+
+### ♻️ Refactoring
+
+* family dissolve ([3877115](https://github.com/ClementBobin/BOB1-Api/commit/38771158fc0b16226d671f7a3b72039f0f0d3241))
+* logic register ([8079d21](https://github.com/ClementBobin/BOB1-Api/commit/8079d21795a5df46446a5b2dc4d1f1d5fd92927f))
+
 ## [1.16.0](https://github.com/ClementBobin/BOB1-Api/compare/v1.15.0...v1.16.0) (2026-11-25)
 
 ### ✨ Features
