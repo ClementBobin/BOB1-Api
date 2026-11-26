@@ -2,7 +2,13 @@ using Microsoft.AspNetCore.Identity;
 
 namespace Bob1.Modules.Identity.Application;
 
-internal sealed record RegisterRequest(string Email, string Password, string FirstName, string LastName, string? FamilyName, string? InvitationCode);
+/// <summary>
+/// <paramref name="IsParent"/>: false registers a staff member (official, table crew...) instead of a parent. The family is optional:
+/// an <paramref name="InvitationCode"/> joins one, <paramref name="CreateFamily"/> (parents only, the default of older apps) creates one,
+/// otherwise the account has no family yet and can create or join one later (<c>/family</c>).
+/// </summary>
+internal sealed record RegisterRequest(string Email, string Password, string FirstName, string LastName, string? FamilyName, string? InvitationCode,
+    bool IsParent = true, bool CreateFamily = true);
 internal sealed record LoginRequest(string Email, string Password);
 internal sealed record RefreshRequest(string RefreshToken);
 internal sealed record BiometricEnrollRequest(string? DeviceName);
@@ -34,14 +40,16 @@ internal sealed class AuthService(IdentityDbContext db, IPasswordHasher<User> ha
             Guard.NotBlank(r.LastName, "last_name", 100));
         if (invalid is not null) return invalid;
         if (!r.Email.Contains('@')) return Error.Validation("email.invalid", "Invalid email address.");
-        if (r.Password is null || r.Password.Length < 8)
-            return Error.Validation("password.too_short", "Password must be at least 8 characters.");
+        var policy = PasswordPolicy.Check(r.Password, r.Email.Trim(), r.FirstName.Trim(), r.LastName.Trim());
+        if (!policy.IsSuccess) return policy.Error;
+        if (!r.IsParent && !string.IsNullOrWhiteSpace(r.FamilyName))
+            return Error.Validation("family.parents_only", "Only parents can create a family.");
 
         var email = r.Email.Trim().ToLowerInvariant();
         if (await db.Users.AnyAsync(u => u.Email == email, ct))
             return Error.Conflict("email.taken", "An account with this email already exists.");
 
-        Guid familyId;
+        Guid? familyId = null;
         var joinedExistingFamily = false;
         if (!string.IsNullOrWhiteSpace(r.InvitationCode))
         {
@@ -53,7 +61,7 @@ internal sealed class AuthService(IdentityDbContext db, IPasswordHasher<User> ha
             familyId = invitation.FamilyId;
             joinedExistingFamily = true;
         }
-        else
+        else if (r.IsParent && r.CreateFamily)
         {
             var name = string.IsNullOrWhiteSpace(r.FamilyName) ? r.LastName.Trim() : r.FamilyName.Trim();
             var family = Family.Create(name, Now);
@@ -61,7 +69,7 @@ internal sealed class AuthService(IdentityDbContext db, IPasswordHasher<User> ha
             familyId = family.Id;
         }
 
-        var user = User.Create(email, r.FirstName.Trim(), r.LastName.Trim(), UserRoles.Parent, familyId, Now);
+        var user = User.Create(email, r.FirstName.Trim(), r.LastName.Trim(), r.IsParent ? UserRoles.Parent : UserRoles.Staff, familyId, Now);
         user.SetPasswordHash(hasher.HashPassword(user, r.Password));
         db.Users.Add(user);
 
@@ -178,7 +186,8 @@ internal sealed class AuthService(IdentityDbContext db, IPasswordHasher<User> ha
 
     private static Error InvalidToken() => Error.Unauthorized("auth.invalid_refresh_token", "Invalid or expired refresh token.");
 
-    private async Task<Result<AuthResponse>> IssueAsync(User user, CancellationToken ct)
+    /// <summary>A new session for the user (also used when their family changes: the family id travels in the access token).</summary>
+    internal async Task<Result<AuthResponse>> IssueAsync(User user, CancellationToken ct)
     {
         var (token, hash) = tokens.NewRefreshToken();
         db.RefreshTokens.Add(RefreshToken.Create(user.Id, hash, Now.Add(TokenService.RefreshLifetime), Now));

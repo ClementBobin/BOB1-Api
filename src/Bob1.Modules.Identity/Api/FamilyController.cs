@@ -9,11 +9,15 @@ internal sealed record MemberDto(Guid UserId, string FirstName, string LastName,
 internal sealed record FamilyDto(Guid Id, string Name, IReadOnlyList<MemberDto> Members);
 internal sealed record InvitationDto(string Code, DateTime ExpiresAtUtc);
 
+/// <summary>
+/// The family of the signed-in person. Anyone with a family can see it, join one with a code, or leave; only a parent starts a family
+/// or hands out codes. Creating / joining / leaving answers with a fresh session (the family id is part of the access token).
+/// </summary>
 [Route(ApiRoutes.V1 + "/family")]
-[Authorize(Policy = Policies.Parent)]
+[Authorize]
 [Tags("Family")]
-internal sealed class FamilyController(IdentityDbContext db, IClubApi club, MembershipService memberships, ICurrentUser user, TimeProvider clock)
-    : ApiControllerBase
+internal sealed class FamilyController(IdentityDbContext db, IClubApi club, MembershipService memberships, FamilyService families,
+    ICurrentUser user, TimeProvider clock) : ApiControllerBase
 {
     private const string CodeAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I
 
@@ -40,7 +44,31 @@ internal sealed class FamilyController(IdentityDbContext db, IClubApi club, Memb
         return Ok(new FamilyDto(f.Id, f.Name, members));
     }
 
-    [HttpPost("invitations")]
+    /// <summary>Starts a family (parents only; the person must not already be in one). The name defaults to the last name.</summary>
+    [HttpPost, Authorize(Policy = Policies.Parent)]
+    public async Task<IActionResult> Create(CreateFamilyRequest r, CancellationToken ct)
+    {
+        var result = await families.CreateAsync(user.UserId, r.Name, ct);
+        return result.IsSuccess ? Ok(result.Value) : result.Error.ToProblem();
+    }
+
+    /// <summary>Joins the family behind a parent's code (single use, 7 days).</summary>
+    [HttpPost("join")]
+    public async Task<IActionResult> Join(JoinFamilyRequest r, CancellationToken ct)
+    {
+        var result = await families.JoinAsync(user.UserId, r.Code, ct);
+        return result.IsSuccess ? Ok(result.Value) : result.Error.ToProblem();
+    }
+
+    /// <summary>Leaves the family. The last member out deletes it.</summary>
+    [HttpPost("leave")]
+    public async Task<IActionResult> Leave(CancellationToken ct)
+    {
+        var result = await families.LeaveAsync(user.UserId, ct);
+        return result.IsSuccess ? Ok(result.Value) : result.Error.ToProblem();
+    }
+
+    [HttpPost("invitations"), Authorize(Policy = Policies.Parent)]
     public async Task<IActionResult> CreateInvitation(CancellationToken ct)
     {
         if (user.FamilyId is not { } familyId) return Error.Forbidden("family.none", "No family.").ToProblem();
