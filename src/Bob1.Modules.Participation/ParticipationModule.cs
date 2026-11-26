@@ -19,6 +19,7 @@ public sealed class ParticipationModule : IModule
         services.AddScoped<IDomainEventHandler<MatchRescheduled>, MatchRescheduledHandler>();
         services.AddScoped<IDomainEventHandler<Bob1.Shared.Contracts.Carpool.RideOffered>, RideOfferedHandler>();
         services.AddScoped<IDomainEventHandler<Bob1.Shared.Contracts.Identity.UserDeactivated>, UserDeactivatedHandler>();
+        services.AddScoped<IDomainEventHandler<Bob1.Shared.Contracts.Identity.FamilyDissolved>, FamilyDissolvedHandler>();
         services.AddHostedService<PresenceReminderService>();
         services.AddHostedService<ParticipationReminderService>();
     }

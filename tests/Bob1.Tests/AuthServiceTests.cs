@@ -38,7 +38,7 @@ public class AuthServiceTests
         return user;
     }
 
-    private static RegisterRequest Register(string email = "camille@bob1.local", string password = "Password1",
+    private static RegisterRequest Register(string email = "camille@bob1.local", string password = "Corr3ct-Horse-Battery!",
         string first = "Camille", string last = "Martin", string? familyName = null, string? code = null) =>
         new(email, password, first, last, familyName, code);
 
@@ -60,7 +60,7 @@ public class AuthServiceTests
         var user = await _db.Users.SingleAsync(Ct);
         Assert.Equal("camille@bob1.local", user.Email);   // trimmed and lower-cased
         Assert.Equal(UserRoles.Parent, user.Roles);
-        Assert.NotEqual("Password1", user.PasswordHash);
+        Assert.NotEqual("Corr3ct-Horse-Battery!", user.PasswordHash);
         var family = await _db.Families.SingleAsync(Ct);
         Assert.Equal(family.Id, user.FamilyId);
         Assert.Equal("Martin", family.Name);              // defaults to the last name
@@ -78,11 +78,87 @@ public class AuthServiceTests
         Assert.Equal("Les Martin", (await _db.Families.SingleAsync(Ct)).Name);
     }
 
+    [Fact]
+    public async Task Register_as_staff_gives_the_staff_role_and_no_family()
+    {
+        var result = await _sut.RegisterAsync(Register() with { IsParent = false, CreateFamily = false }, Ct);
+
+        Assert.True(result.IsSuccess);
+        var user = await _db.Users.SingleAsync(Ct);
+        Assert.Equal(UserRoles.Staff, user.Roles);
+        Assert.Null(user.FamilyId);
+        Assert.Empty(_db.Families);
+        Assert.Equal(new[] { "Staff" }, result.Value.User.Roles);
+    }
+
+    [Fact]
+    public async Task Register_as_staff_never_creates_a_family_even_with_the_default_flag()
+    {
+        await _sut.RegisterAsync(Register() with { IsParent = false }, Ct);   // CreateFamily stays true (older default)
+
+        Assert.Null((await _db.Users.SingleAsync(Ct)).FamilyId);
+        Assert.Empty(_db.Families);
+    }
+
+    [Fact]
+    public async Task Register_refuses_a_family_name_from_somebody_who_is_not_a_parent()
+    {
+        var result = await _sut.RegisterAsync(Register(familyName: "Les Martin") with { IsParent = false }, Ct);
+
+        Assert.Equal("family.parents_only", result.Error.Code);
+        Assert.Empty(_db.Users);
+    }
+
+    [Fact]
+    public async Task Register_can_skip_the_family()
+    {
+        var result = await _sut.RegisterAsync(Register() with { CreateFamily = false }, Ct);
+
+        Assert.True(result.IsSuccess);
+        var user = await _db.Users.SingleAsync(Ct);
+        Assert.Equal(UserRoles.Parent, user.Roles);
+        Assert.Null(user.FamilyId);
+        Assert.Null(result.Value.User.FamilyId);
+        Assert.Empty(_db.Families);
+    }
+
+    [Fact]
+    public async Task Register_as_staff_can_still_join_a_family_with_a_code()
+    {
+        var family = Family.Create("Martin", _clock.Now);
+        _db.Families.Add(family);
+        var owner = await SeedUserAsync("owner@bob1.local", familyId: family.Id);
+        _db.Invitations.Add(FamilyInvitation.Create(family.Id, "ABCD1234", owner.Id, _clock.Now.AddDays(7)));
+        await _db.SaveChangesAsync(Ct);
+
+        var result = await _sut.RegisterAsync(Register(email: "ref@bob1.local", code: "ABCD1234") with { IsParent = false }, Ct);
+
+        Assert.True(result.IsSuccess);
+        var user = await _db.Users.SingleAsync(u => u.Email == "ref@bob1.local", Ct);
+        Assert.Equal(UserRoles.Staff, user.Roles);
+        Assert.Equal(family.Id, user.FamilyId);
+    }
+
     [Theory]
-    [InlineData("", "Password1", "Camille", "Martin", "email.required")]
-    [InlineData("camille@bob1.local", "Password1", "", "Martin", "first_name.required")]
-    [InlineData("camille@bob1.local", "Password1", "Camille", "  ", "last_name.required")]
-    [InlineData("not-an-email", "Password1", "Camille", "Martin", "email.invalid")]
+    [InlineData("Aa1!aaaaaaa", "password.too_short")]                  // 11 characters
+    [InlineData("Corr3ctHorseBattery", "password.no_symbol")]
+    [InlineData("corr3ct-horse-battery!", "password.no_upper")]
+    [InlineData("Camille-Rocks-77!", "password.personal")]             // contains the first name
+    [InlineData("Super-Basket-2026!", "password.common")]
+    public async Task Register_applies_the_password_policy(string password, string code)
+    {
+        var result = await _sut.RegisterAsync(Register(password: password), Ct);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(code, result.Error.Code);
+        Assert.Empty(_db.Users);
+    }
+
+    [Theory]
+    [InlineData("", "Corr3ct-Horse-Battery!", "Camille", "Martin", "email.required")]
+    [InlineData("camille@bob1.local", "Corr3ct-Horse-Battery!", "", "Martin", "first_name.required")]
+    [InlineData("camille@bob1.local", "Corr3ct-Horse-Battery!", "Camille", "  ", "last_name.required")]
+    [InlineData("not-an-email", "Corr3ct-Horse-Battery!", "Camille", "Martin", "email.invalid")]
     [InlineData("camille@bob1.local", "short", "Camille", "Martin", "password.too_short")]
     public async Task Register_validates_the_input(string email, string password, string first, string last, string code)
     {
