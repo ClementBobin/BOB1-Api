@@ -26,7 +26,7 @@ internal sealed record TeamRef(Guid Id, string Name);
 [Authorize(Policy = Policies.Admin)]
 [Tags("People (admin)")]
 internal sealed class PeopleAdminController(IdentityDbContext db, IClubApi club, MembershipService memberships, IPasswordHasher<Domain.User> hasher, ICurrentUser me, TimeProvider clock,
-    PeopleNotices notices, IDomainEventDispatcher events, AccountLinkService links, ILogger<PeopleAdminController> log)
+    PeopleNotices notices, IDomainEventDispatcher events, AccountLinkService links, FamilyService families, ILogger<PeopleAdminController> log)
     : ApiControllerBase
 {
     [HttpQuery]
@@ -130,6 +130,8 @@ internal sealed class PeopleAdminController(IdentityDbContext db, IClubApi club,
 
         u.SetFamilyId(r.FamilyId);
         await db.SaveChangesAsync(ct);
+        // No endpoint deletes a family: the one the person just left goes away with its last member.
+        if (oldFamily is { } left && left != r.FamilyId) await families.DissolveIfEmptyAsync(left, ct);
         await memberships.SetCurrentAsync(u.Id, r.DivisionId, ct);   // only the current season changes: history is kept
         if (r.TeamIds is not null) await memberships.SetCurrentTeamsAsync(u.Id, r.TeamIds, ct);
 

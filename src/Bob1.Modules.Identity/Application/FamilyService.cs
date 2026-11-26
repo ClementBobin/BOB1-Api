@@ -69,12 +69,7 @@ internal sealed class FamilyService(IdentityDbContext db, AuthService auth, INot
         // Deactivated accounts still belong to the family: only a family with nobody at all is deleted.
         var anyoneElse = await db.Users.AnyAsync(u => u.FamilyId == familyId && u.Id != user.Id, ct);
         user.SetFamilyId(null);
-        if (!anyoneElse)
-        {
-            db.Invitations.RemoveRange(await db.Invitations.Where(i => i.FamilyId == familyId).ToListAsync(ct));
-            var family = await db.Families.SingleOrDefaultAsync(f => f.Id == familyId, ct);
-            if (family is not null) db.Families.Remove(family);
-        }
+        if (!anyoneElse) await StageRemovalAsync(familyId, ct);
 
         var issued = await auth.IssueAsync(user, ct);
         if (!issued.IsSuccess) return issued;
@@ -85,6 +80,26 @@ internal sealed class FamilyService(IdentityDbContext db, AuthService auth, INot
             await Safe.RunAsync(log, "family member left", () => NotifyMembersAsync(user, familyId, "Un membre a quitté la famille",
                 $"{user.FirstName} {user.LastName} a quitté votre famille.", "family_member_left", ct));
         return issued;
+    }
+
+    /// <summary>
+    /// Deletes the family (and its invitations) when nobody belongs to it any more. For paths that move a person out of a family without
+    /// going through <see cref="LeaveAsync"/>, e.g. an admin changing someone's family. Returns true when the family was deleted.
+    /// </summary>
+    public async Task<bool> DissolveIfEmptyAsync(Guid familyId, CancellationToken ct)
+    {
+        if (await db.Users.AnyAsync(u => u.FamilyId == familyId, ct)) return false;
+        await StageRemovalAsync(familyId, ct);
+        await db.SaveChangesAsync(ct);
+        await Safe.RunAsync(log, "family dissolved", () => events.DispatchAsync([new FamilyDissolved(familyId)], ct));
+        return true;
+    }
+
+    private async Task StageRemovalAsync(Guid familyId, CancellationToken ct)
+    {
+        db.Invitations.RemoveRange(await db.Invitations.Where(i => i.FamilyId == familyId).ToListAsync(ct));
+        var family = await db.Families.SingleOrDefaultAsync(f => f.Id == familyId, ct);
+        if (family is not null) db.Families.Remove(family);
     }
 
     private Task<User?> ActiveUserAsync(Guid userId, CancellationToken ct) =>
